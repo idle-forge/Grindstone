@@ -17,6 +17,12 @@ The big one: **check on your bot from anywhere**. Set it up in 5 minutes with
   is opened to the internet
 - The live log now works over https (Tailscale's address) too
 
+### Also new
+
+- The Controls checklist folds away: *Will sort itself out* and *Good to know* are closed until
+  you click them (the panel remembers), so the task settings below are in reach without
+  scrolling. Anything that stops you starting is always shown
+
 ### Fixes
 
 - Fish+cook: a fenced-off tree is skipped, and when no tree can be chopped the fire's logs are

@@ -167,6 +167,12 @@
   @media (max-width: 560px) { .xp th:nth-child(5), .xp td:nth-child(5) { display: none; } }
   .need.ok { background: #18301a; border-color: #2f5a2f; color: var(--green); }
   .need.info { background: var(--panel2); border-color: var(--line); color: var(--muted); }
+  details.need > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
+  details.need > summary::-webkit-details-marker { display: none; }
+  details.need > summary::before { content: "▸"; font-size: 11px; width: 10px; }
+  details.need[open] > summary::before { content: "▾"; }
+  details.need > summary small { font-weight: 400; opacity: .8; }
+  details.need:not([open]) > summary small::after { content: " - click to show"; }
 </style>
 </head>
 <body>
@@ -866,16 +872,26 @@ async function runCheck() {
     const r = await fetch("/api/check", { method: "POST", headers: { "Content-Type": "application/json" },
                                           body: JSON.stringify(settings()) });
     const c = await r.json();
-    const list = (title, items, cls) => items.length
-      ? `<div class="${cls}"><b>${title}</b><ul>${items.map(t => `<li>${esc(t)}</li>`).join("")}</ul></div>` : "";
+    const items = (xs) => `<ul>${xs.map(t => `<li>${esc(t)}</li>`).join("")}</ul>`;
+    const list = (title, xs, cls) => xs.length ? `<div class="${cls}"><b>${title}</b>${items(xs)}</div>` : "";
+    // the informational lists fold away (closed unless you opened them) - what blocks Start never does
+    const fold = (key, title, xs, cls) => xs.length ? `<details class="${cls}" data-fold="${key}"${needOpen(key) ? " open" : ""}>` +
+      `<summary><b>${title}</b> <small>(${xs.length})</small></summary>${items(xs)}</details>` : "";
     $("need").innerHTML =
       list("Needed before you can start", c.errors || [], "need") +
-      list("Will sort itself out", c.fixes || [], "need ok") +
-      list("Good to know", c.warnings || [], "need info");
+      fold("fixes", "Will sort itself out", c.fixes || [], "need ok") +
+      fold("warnings", "Good to know", c.warnings || [], "need info");
     if (!running) $("start").disabled = (c.errors || []).length > 0;
     lastCheckErrors = (c.errors || []).length;
   } catch (e) {}
 }
+function needOpen(key) {
+  try { return localStorage.getItem("gs-need-" + key) === "1"; } catch (e) { return false; }
+}
+$("need").addEventListener("toggle", (e) => {               // remembered across checks and visits
+  const key = e.target.dataset && e.target.dataset.fold;
+  try { if (key) localStorage.setItem("gs-need-" + key, e.target.open ? "1" : "0"); } catch (err) { /* private mode */ }
+}, true);
 // a warning from before the game was up (or logged in) clears by itself once it is
 let lastCheckErrors = 0;
 setInterval(() => { if (lastCheckErrors) runCheck(); }, 5000);

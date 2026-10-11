@@ -114,7 +114,8 @@ def test_phone_page_and_its_endpoints(sent, monkeypatch, tmp_path):
     c = TestClient(server.app)
     assert "Phone notifications" in c.get("/m").text
     assert c.get("/phone.svg").headers["content-type"].startswith("image/svg+xml")
-    assert "wss" in c.get("/").text                      # the live log works over Tailscale's https too
+    assert "wss" in c.get("/").text
+    assert "data-fold" in c.get("/").text                 # the info lists under Start fold away                      # the live log works over Tailscale's https too
     cfg = c.get("/api/notify").json()
     assert cfg["topic"].startswith("grindstone-")
     r = c.post("/api/notify", json={**cfg, "enabled": True, "summary_hours": 4}).json()
