@@ -3,7 +3,9 @@
     %USERPROFILE%\\.venvs\\lumberjack\\Scripts\\python.exe -m lumberjack.web.server
     then open http://127.0.0.1:8765
 
-Only listens on 127.0.0.1, so it's reachable from this PC only.
+Only listens on 127.0.0.1, so it's reachable from this PC only. To use it from your phone, let
+Tailscale hand it on privately to your own devices (`tailscale serve --bg 8765`, see the README) -
+never open the port to the internet: the panel has no password. /m is the phone layout.
 """
 import asyncio
 import collections
@@ -20,7 +22,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from lumberjack import notices, version
+from lumberjack import notices, notify, version
 from lumberjack.core.window import GameWindow
 from lumberjack.ui import inventory
 from lumberjack.vision import trees
@@ -1634,6 +1636,7 @@ class BotController:
             "plan": self.plan_info,
             "game_data": _game_data_up(),
             "session": self.session_status(),
+            "updating": self.updating,
         }
         if b:
             el = time.monotonic() - b.started
@@ -1776,6 +1779,73 @@ def icon_svg():
 @app.get("/")
 def index():
     return FileResponse(HERE / "index.html")
+
+
+@app.get("/m")
+def phone():
+    """The phone layout: status, Start/Pause/Stop, the log and notification settings."""
+    return FileResponse(HERE / "mobile.html")
+
+
+@app.get("/api/start_saved")
+def start_saved_info():
+    """What the phone's Start buttons would start: the Task tab's task and the saved plan."""
+    p = load_plan()
+    return {"task": load_settings().task, "plan_steps": len(p.steps)}
+
+
+class StartSavedIn(BaseModel):
+    what: str = "task"                # "task" (the Task tab as last saved) | "plan" (the Plan tab)
+
+
+@app.post("/api/start_saved")
+def start_saved(w: StartSavedIn):
+    """Start without sending settings - the phone page has no Task tab, so it uses the saved ones."""
+    if w.what == "plan":
+        p = load_plan()
+        if not p.steps:
+            return JSONResponse({"ok": False, "error": "no plan saved - make one on the Plan tab"}, status_code=400)
+        return plan_start(p)
+    err = ctl.start(load_settings())
+    return JSONResponse({"ok": err is None, "error": err}, status_code=200 if err is None else 400)
+
+
+@app.get("/snapshot.jpg")
+def snapshot():
+    """One frame of the bot's view - light on mobile data, unlike the live stream."""
+    jpg = _annotated_jpeg()
+    if jpg is None:
+        return JSONResponse({"error": "can't see the game window"}, status_code=503)
+    return StreamingResponse(iter([jpg]), media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
+class NotifyIn(BaseModel):
+    enabled: bool = False
+    server: str = notify.DEFAULT_SERVER
+    topic: str = ""
+    click: str = ""
+    stopped: bool = True
+    problems: bool = True
+    levels: bool = True
+    summary_hours: float = 0
+
+
+@app.get("/api/notify")
+def notify_get():
+    return notify.load()
+
+
+@app.post("/api/notify")
+def notify_set(n: NotifyIn):
+    return notify.save(n.model_dump())
+
+
+@app.post("/api/notify/test")
+def notify_test():
+    cfg = notify.load()
+    err = notify.send("Grindstone test", "Notifications work. " + notify.summary_text(ctl.status()),
+                      3, ("white_check_mark",), cfg, wait=True)
+    return JSONResponse({"ok": err is None, "error": err}, status_code=200 if err is None else 502)
 
 
 @app.get("/api/options")
@@ -2760,6 +2830,7 @@ def main():
     threading.Thread(target=freeze_watchdog, name="freeze-watchdog", daemon=True).start()
     threading.Thread(target=auto_login, name="auto-login", daemon=True).start()
     threading.Thread(target=idle_updater, name="idle-updater", daemon=True).start()
+    notify.start(ctl.status, lambda: ctl.running)
     uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="warning")
 
 

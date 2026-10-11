@@ -1,5 +1,16 @@
 # Changelog
 
+## On your phone
+
+- Phone layout (`/m`): status, totals, XP, the activity log, a picture of the game, and Start /
+  Pause / Stop - phones get it automatically. Reach it privately with Tailscale
+  ([docs/PHONE.md](docs/PHONE.md))
+- Phone notifications through the free ntfy app: the bot stopping by itself, problems that need
+  you, level-ups and an optional progress summary every few hours
+- The live log works over https (Tailscale's address) too
+- Fish+cook: a fenced-off tree is skipped, and when no tree can be chopped the fire's logs are
+  spawned instead (no more "Cooked 0 of 22"); losing the game while travelling waits for it
+
 ## More skills, longer routes
 
 - New skills: Herblore, Runecrafting, Agility, Hunter, Slayer and Farming - Autopilot trains them too

@@ -29,4 +29,9 @@ refuses every connection that isn't to this PC's singleplayer server.
 The panel's "Don't show this again" box on the singleplayer *notice* (`lumberjack/notices.py`)
 hides that popup only. It is not a switch for the guard and must never become one.
 
+The panel listens on 127.0.0.1 only and has no password. Remote use (the phone layout, `/m`) goes
+through Tailscale (`tailscale serve`, docs/PHONE.md), which keeps it to the owner's devices; don't
+make the panel listen on other addresses or suggest port forwarding or public tunnels for it.
+Notifications (`lumberjack/notify.py`) send status text only - never configs/ contents or the login.
+
 Everything else (bug fixes, new skills, the panel, tests) is welcome. See CONTRIBUTING.md.

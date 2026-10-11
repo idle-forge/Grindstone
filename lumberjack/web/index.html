@@ -25,6 +25,7 @@
   .pill.pause { color: var(--gold); border-color: #6a5420; }
   .pill.err { color: var(--red); border-color: #6a2a20; }
   .pill.rec { color: var(--red); border-color: #6a2a20; }
+  a.pill { text-decoration: none; }
   main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; padding: 16px 20px;
          max-width: 1340px; margin: 0 auto; }
   @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
@@ -201,6 +202,7 @@
   <span id="version" class="pill" style="cursor:pointer" title="Bot version (code commits) - click to check GitHub for a newer one now"></span>
   <button id="update" class="pill pause" type="button" hidden title="Download the newest version and restart the panel">update available</button>
   <button id="checkupd" class="pill" type="button" title="Look on GitHub for a newer version now and install it (the panel restarts on it)">⟳ Check for updates</button>
+  <a class="pill" href="/m" title="The phone layout - open the panel's Tailscale address on your phone (see the README)">📱 Phone view</a>
   <span id="where" class="hint" style="margin:0 0 0 auto"></span>
 </header>
 
@@ -759,6 +761,8 @@
 </main>
 
 <script>
+// a phone gets the phone layout (its "Full panel" link comes back here with ?full)
+if (matchMedia("(max-width: 700px)").matches && !new URLSearchParams(location.search).has("full")) location.replace("/m");
 notices();
 async function notices() {
   const box = document.getElementById("spnotice"), ok = document.getElementById("spok");
@@ -1321,7 +1325,7 @@ $("update").onclick = async () => {
 
 // ---- live status ----
 function connect() {
-  const ws = new WebSocket(`ws://${location.host}/ws`);
+  const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
   ws.onmessage = (e) => {
     const st = JSON.parse(e.data);
     running = st.running;

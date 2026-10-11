@@ -119,6 +119,8 @@ variable to its folder before running setup.
   it where it was after a crash, a stall or a death.
 - **Many skills:** Plan tab → add steps (task, minutes and/or target level, place) or use
   **★ Starter plan**. See [docs/PLANS.md](docs/PLANS.md).
+- **On your phone:** check on it, start and stop it, and get notifications - privately through
+  Tailscale. See [docs/PHONE.md](docs/PHONE.md).
 - **Quitting:** just close the game - a running bot is stopped too. (Only a real crash or a
   frozen game is restarted automatically.)
 
@@ -141,6 +143,7 @@ skipped and the panel tells you which files are in the way.
 
 - [Skills](docs/SKILLS.md) - every task, what it needs, how it levels
 - [Plans](docs/PLANS.md) - plans, training routes, places, history, running overnight
+- [On your phone](docs/PHONE.md) - the phone layout over Tailscale, and notifications
 - [Troubleshooting](docs/TROUBLESHOOTING.md) - logs, common problems and fixes
 - [How it works](docs/HOW_IT_WORKS.md) - the add-on, game data, the code layout
 

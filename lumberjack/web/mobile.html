@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14120f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Grindstone</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon.png">
+<style>
+  :root {
+    --bg: #14120f; --panel: #1f1b16; --panel2: #2a241d; --line: #3a3127;
+    --text: #e9e1d3; --muted: #a39682; --gold: #e2b54a; --green: #6fcf6f;
+    --red: #e06a5a; --blue: #6aa8e0;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+         padding: 0 16px calc(24px + env(safe-area-inset-bottom)); max-width: 560px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 10px; padding: 14px 0 12px;
+           position: sticky; top: 0; background: var(--bg); z-index: 2; }
+  header h1 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 6px; }
+  header h1 img { width: 22px; height: 22px; }
+  header h1 b { color: var(--gold); }
+  .pill { padding: 3px 10px; border-radius: 999px; font-size: 12px; background: var(--panel2);
+          color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+  .pill.run { color: var(--green); border-color: #2f5a2f; }
+  .pill.pause { color: var(--gold); border-color: #6a5420; }
+  .pill.err { color: var(--red); border-color: #6a2a20; }
+  #conn { margin-left: auto; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+          padding: 14px; margin-bottom: 12px; }
+  .card h2 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
+             color: var(--muted); font-weight: 600; }
+  #task { font-size: 20px; font-weight: 700; }
+  #state { color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+  .banner { margin-top: 10px; padding: 8px 10px; border-radius: 8px; font-size: 14px; overflow-wrap: anywhere; }
+  .banner.bad { background: #3a1d18; color: #f0b0a6; }
+  .banner.info { background: var(--panel2); color: var(--muted); }
+  .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  button { min-height: 52px; padding: 10px; border-radius: 10px; border: 1px solid var(--line);
+           background: var(--panel2); color: var(--text); font: inherit; font-weight: 700;
+           cursor: pointer; touch-action: manipulation; }
+  button:disabled { opacity: .35; }
+  button.go { background: #2f5a2f; border-color: #3f7a3f; }
+  button.stop { background: #5a2a22; border-color: #7a3a30; }
+  button.small { min-height: 40px; font-weight: 600; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: var(--panel2); border-radius: 8px; padding: 10px; min-width: 0; }
+  .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat small { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  td { padding: 6px 0; border-top: 1px solid var(--line); }
+  tr:first-child td { border-top: 0; }
+  td:not(:first-child) { text-align: right; }
+  td small { color: var(--green); }
+  #health { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  #shot { width: 100%; display: block; border-radius: 8px; background: #000; image-rendering: pixelated;
+          aspect-ratio: 765 / 503; margin-bottom: 8px; }
+  #log { font: 12px/1.5 ui-monospace, Consolas, monospace; color: var(--muted); max-height: 45vh;
+         overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+  #log .warn { color: var(--gold); }
+  #log .bad { color: var(--red); }
+  details summary { cursor: pointer; font-weight: 700; list-style: none; display: flex;
+                    justify-content: space-between; align-items: center; min-height: 28px; }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::after { content: "▸"; color: var(--muted); }
+  details[open] summary::after { content: "▾"; }
+  label { display: block; margin-top: 12px; color: var(--muted); font-size: 13px; }
+  label.check { display: flex; gap: 10px; align-items: center; color: var(--text); font-size: 15px; min-height: 36px; }
+  label.check input { width: 22px; height: 22px; accent-color: var(--gold); flex: none; }
+  input[type=text], input[type=url], select { width: 100%; margin-top: 4px; padding: 10px; border-radius: 8px;
+           border: 1px solid var(--line); background: var(--panel2); color: var(--text); font: inherit; }
+  .hint { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
+  .hint code { color: var(--text); overflow-wrap: anywhere; }
+  .row { display: flex; gap: 10px; margin-top: 14px; }
+  .row > * { flex: 1; }
+  #nmsg { margin-top: 8px; font-size: 14px; }
+  footer { text-align: center; margin-top: 18px; }
+  footer a { color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1><img src="/icon.svg" alt=""><span><b>Grind</b>stone</span></h1>
+  <span id="pill" class="pill">…</span>
+  <span id="conn" class="pill" title="Connection to the panel on your PC">connecting</span>
+</header>
+
+<div class="card">
+  <div id="task">–</div>
+  <div id="state">Connecting to the panel…</div>
+  <div id="plan" class="banner info" hidden></div>
+  <div id="stopped" class="banner bad" hidden></div>
+</div>
+
+<div class="card">
+  <div class="buttons">
+    <button id="start" class="go" type="button" disabled>Start</button>
+    <button id="startplan" class="go" type="button" disabled hidden>Start plan</button>
+    <button id="pause" type="button" disabled>Pause</button>
+    <button id="stop" class="stop" type="button" disabled>Stop</button>
+  </div>
+  <p id="amsg" class="hint" role="status"></p>
+</div>
+
+<div class="card">
+  <div class="stats">
+    <div class="stat"><b id="s-done">0</b><small id="l-done">done</small></div>
+    <div class="stat"><b id="s-rate">–</b><small id="l-rate">per hour</small></div>
+    <div class="stat"><b id="s-time">0:00</b><small>running</small></div>
+    <div class="stat" id="t-cooked" hidden><b id="s-cooked">0</b><small>cooked · <span id="s-burnt">0</span> burnt</small></div>
+  </div>
+  <table id="xp" hidden><tbody></tbody></table>
+  <div id="health" hidden></div>
+</div>
+
+<div class="card">
+  <h2>Game view</h2>
+  <img id="shot" alt="The bot's view of the game" hidden>
+  <div class="buttons">
+    <button id="look" class="small" type="button">Show the game</button>
+    <button id="auto" class="small" type="button" hidden>Auto-refresh: off</button>
+  </div>
+  <p class="hint">One picture at a time, to go easy on mobile data.</p>
+</div>
+
+<div class="card">
+  <h2>Activity</h2>
+  <div id="log" aria-live="polite"></div>
+</div>
+
+<div class="card">
+  <details id="ncard">
+    <summary>🔔 Phone notifications</summary>
+    <p class="hint">1. Install the free <b>ntfy</b> app (Play Store / App Store).<br>
+      2. In the app tap <b>+</b> and subscribe to the topic below.<br>
+      3. Tick <b>Turn on</b>, Save, then <b>Send a test</b>.</p>
+    <label for="n-topic">Topic (works like a password - keep it random)</label>
+    <input id="n-topic" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label class="check"><input id="n-enabled" type="checkbox"> Turn on</label>
+    <label class="check"><input id="n-stopped" type="checkbox"> When the bot stops by itself</label>
+    <label class="check"><input id="n-problems" type="checkbox"> When something needs you (froze, gave up, login, minimized)</label>
+    <label class="check"><input id="n-levels" type="checkbox"> Level-ups</label>
+    <label for="n-summary">Progress summary</label>
+    <select id="n-summary">
+      <option value="0">Off</option><option value="1">Every hour</option><option value="2">Every 2 hours</option>
+      <option value="4">Every 4 hours</option><option value="8">Every 8 hours</option>
+    </select>
+    <label for="n-click">Open this when a notification is tapped</label>
+    <input id="n-click" type="url" placeholder="https://your-pc.your-tailnet.ts.net/m" autocomplete="off">
+    <p class="hint">Your Tailscale address for this page. Leave empty to just show the message.</p>
+    <label for="n-server">ntfy server</label>
+    <input id="n-server" type="url" autocomplete="off">
+    <div class="row">
+      <button id="nsave" class="go small" type="button">Save</button>
+      <button id="ntest" class="small" type="button">Send a test</button>
+    </div>
+    <div id="nmsg" role="status"></div>
+    <p class="hint">Only the bot's status is sent (what stopped and why, levels, totals) - never your game login.</p>
+  </details>
+</div>
+
+<footer><a href="/?full=1">Full panel</a></footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const n = (v) => v == null ? "–" : Number(v).toLocaleString();
+const UNITS = { fishing: ["fish caught", "fish / hour"], mining: ["ore mined", "ore / hour"], combat: ["kills", "kills / hour"],
+  ranged: ["kills", "kills / hour"], magic: ["casts", "casts / hour"], thieving: ["pickpockets", "steals / hour"],
+  firemaking: ["fires lit", "fires / hour"], cooking: ["fish cooked", "fish / hour"], prayer: ["bones buried", "bones / hour"],
+  fletching: ["logs fletched", "logs / hour"], crafting: ["gems cut", "gems / hour"], smithing: ["bars smithed", "bars / hour"],
+  herblore: ["potions made", "potions / hour"], runecrafting: ["essence crafted", "essence / hour"], agility: ["laps", "laps / hour"],
+  hunter: ["caught", "catches / hour"], slayer: ["kills", "kills / hour"], farming: ["harvests", "harvests / hour"],
+  construction: ["things built", "builds / hour"], summoning: ["pouches made", "pouches / hour"], woodcutting: ["logs cut", "logs / hour"] };
+const cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
+const dur = (s) => `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}`;
+let running = false, busy = false, saved = { task: "", plan_steps: 0 };
+
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                               body: JSON.stringify(body || {}) });
+  let j = {};
+  try { j = await r.json(); } catch (e) { /* not JSON */ }
+  return { ok: r.ok && j.ok !== false, ...j };
+}
+
+async function loadSaved() {
+  try { saved = await (await fetch("/api/start_saved")).json(); } catch (e) { return; }
+  $("start").textContent = `Start ${cap(saved.task) || ""}`.trim();
+  $("startplan").hidden = !saved.plan_steps;
+  $("startplan").textContent = `Start plan (${saved.plan_steps} step${saved.plan_steps === 1 ? "" : "s"})`;
+}
+
+function say(t, bad) { $("amsg").textContent = t || ""; $("amsg").style.color = bad ? "var(--red)" : ""; }
+
+$("start").onclick = async () => {
+  say("Starting…");
+  const r = await post("/api/start_saved", { what: "task" });
+  say(r.ok ? "" : r.error || "Couldn't start", !r.ok);
+};
+$("startplan").onclick = async () => {
+  say("Starting the plan…");
+  const r = await post("/api/start_saved", { what: "plan" });
+  say(r.ok ? "" : r.error || "Couldn't start the plan", !r.ok);
+};
+$("pause").onclick = () => post("/api/pause");
+$("stop").onclick = async () => {
+  if (!confirm("Stop the bot?")) return;            // no stopping a long run from a pocket tap
+  await post("/api/stop");
+};
+
+// ---- live status ----
+function render(st) {
+  running = st.running;
+  busy = running || !!st.manual || !!st.recording;
+  const pill = $("pill");
+  pill.textContent = st.updating ? "updating" : st.paused ? "paused" : running ? "running" : st.error ? "error" : "idle";
+  pill.className = "pill " + (st.paused ? "pause" : running ? "run" : st.error ? "err" : "");
+  const task = st.task || saved.task;
+  $("task").textContent = cap(task) || "–";
+  $("state").textContent = running ? (st.state || "") : st.manual ? `Busy: ${st.manual}` : "Not running";
+  const pl = st.plan;
+  $("plan").hidden = !pl;
+  if (pl && pl.autopilot) $("plan").textContent = `🤖 Autopilot #${pl.step}: ${pl.task}` + (pl.why ? ` - ${pl.why}` : "") +
+    (pl.total ? ` · total level ${pl.total}/${pl.total_target}` : "");
+  else if (pl) $("plan").textContent = `Plan step ${pl.step}/${pl.of}: ${pl.task}` + (pl.place ? ` at ${pl.place}` : "") +
+    (pl.until ? ` (${pl.until})` : "");
+  $("stopped").hidden = !st.stop_reason;
+  $("stopped").textContent = st.stop_reason ? `Stopped: ${st.stop_reason}` : "";
+  $("start").disabled = $("startplan").disabled = busy;
+  $("pause").disabled = $("stop").disabled = !running;
+  $("pause").textContent = st.paused ? "Resume" : "Pause";
+  const [label, rate] = UNITS[task] || ["done", "per hour"];
+  $("l-done").textContent = label;
+  $("l-rate").textContent = rate;
+  $("s-done").textContent = n(st.logs);
+  $("s-rate").textContent = st.per_hour ? n(st.per_hour) : "–";
+  $("s-time").textContent = dur(st.elapsed || 0);
+  $("t-cooked").hidden = !(st.cooked || st.burnt);
+  $("s-cooked").textContent = n(st.cooked);
+  $("s-burnt").textContent = n(st.burnt);
+  const rows = Object.entries(st.xp || {}).filter(([, v]) => v.gained);
+  $("xp").hidden = !rows.length;
+  $("xp").querySelector("tbody").innerHTML = rows.map(([k, v]) => `<tr><td>${esc(cap(k))} ${v.level}` +
+    `${v.levels_gained ? ` <small>+${v.levels_gained}</small>` : ""}</td><td>+${n(v.gained)} xp</td>` +
+    `<td>${v.per_hour ? n(v.per_hour) + "/h" : ""}</td></tr>`).join("");
+  const ss = st.session;
+  $("health").hidden = !ss || !(ss.recoveries || ss.deaths || ss.events);
+  if (ss) {
+    const bits = [];
+    if (ss.recoveries) bits.push(`${ss.recoveries} recovered`);
+    if (ss.deaths) bits.push(`${ss.deaths} death${ss.deaths === 1 ? "" : "s"}`);
+    if (ss.events) bits.push(`${ss.events} random event${ss.events === 1 ? "" : "s"}`);
+    $("health").textContent = "🩺 " + bits.join(" · ") + (ss.last_problem ? ` — last: ${ss.last_problem}` : "");
+  }
+  if (st.log && st.log.length) addLog(st.log);
+}
+
+const LOG_MAX = 150;
+function addLog(lines) {
+  const box = $("log"), atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  for (const t of lines) {
+    const d = document.createElement("div");
+    if (/crash|error|frozen|Giving up|Traceback/i.test(t)) d.className = "bad";
+    else if (/can't|couldn't|failed|minimized|recovering|Lost /i.test(t)) d.className = "warn";
+    d.textContent = t;
+    box.appendChild(d);
+  }
+  while (box.childElementCount > LOG_MAX) box.firstElementChild.remove();
+  if (atEnd) box.scrollTop = box.scrollHeight;
+}
+
+let ws = null, retry = 1000;
+function connect() {
+  ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+  ws.onopen = () => { retry = 1000; $("conn").textContent = "live"; $("conn").className = "pill run";
+                      $("log").replaceChildren(); loadSaved(); };   // a reconnect resends the last lines
+  ws.onmessage = (e) => render(JSON.parse(e.data));
+  ws.onclose = () => {
+    $("conn").textContent = "offline"; $("conn").className = "pill err";
+    $("start").disabled = $("startplan").disabled = $("pause").disabled = $("stop").disabled = true;
+    if (document.visibilityState === "visible") setTimeout(connect, retry);
+    retry = Math.min(retry * 2, 15000);
+  };
+}
+// phones freeze background tabs: reconnect as soon as the page is looked at again
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && (!ws || ws.readyState > 1)) { retry = 1000; connect(); }
+});
+connect();
+
+// ---- game view ----
+let autoTimer = null;
+function shoot() {
+  const img = $("shot");
+  img.hidden = false;
+  img.src = `/snapshot.jpg?t=${Date.now()}`;
+  $("look").textContent = "Refresh";
+  $("auto").hidden = false;
+}
+$("shot").onerror = () => { $("shot").hidden = true; say("Can't see the game window right now", true); };
+$("look").onclick = shoot;
+$("auto").onclick = () => {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  else { shoot(); autoTimer = setInterval(() => document.visibilityState === "visible" && shoot(), 5000); }
+  $("auto").textContent = `Auto-refresh: ${autoTimer ? "every 5 s" : "off"}`;
+};
+
+// ---- notifications ----
+const NF = ["enabled", "stopped", "problems", "levels"];
+async function loadNotify() {
+  const c = await (await fetch("/api/notify")).json();
+  $("n-topic").value = c.topic;
+  $("n-server").value = c.server;
+  $("n-click").value = c.click || (location.protocol === "https:" ? `${location.origin}/m` : "");
+  $("n-summary").value = String(c.summary_hours || 0);
+  if (!$("n-summary").value) $("n-summary").value = "0";
+  for (const k of NF) $("n-" + k).checked = !!c[k];
+  if (!c.enabled) $("ncard").open = location.hash === "#notify";
+}
+async function saveNotify() {
+  const body = { topic: $("n-topic").value.trim(), server: $("n-server").value.trim(), click: $("n-click").value.trim(),
+                 summary_hours: Number($("n-summary").value) };
+  for (const k of NF) body[k] = $("n-" + k).checked;
+  const r = await fetch("/api/notify", { method: "POST", headers: { "Content-Type": "application/json" },
+                                         body: JSON.stringify(body) });
+  const c = await r.json();
+  $("n-topic").value = c.topic;
+  return r.ok;
+}
+$("nsave").onclick = async () => {
+  $("nmsg").textContent = (await saveNotify()) ? "Saved ✓" : "Couldn't save";
+};
+$("ntest").onclick = async () => {
+  $("nmsg").textContent = "Sending…";
+  await saveNotify();
+  const r = await post("/api/notify/test");
+  $("nmsg").textContent = r.ok ? "Sent ✓ - it should pop up on your phone in a few seconds"
+    : `Couldn't send: ${r.error || "unknown error"} (is the PC online?)`;
+};
+loadNotify();
+</script>
+</body>
+</html>
