@@ -1,5 +1,7 @@
 # Grindstone on your phone
 
+<p align="center"><img src="img/phone.png" width="300" alt="The phone layout"></p>
+
 Check on the bot and start, pause or stop it from your phone, even when you're out, and get a
 notification when something needs you.
 
@@ -50,6 +52,25 @@ You can be told when:
 Each kind of problem is sent at most once every 30 minutes. Only the bot's status is sent (what
 stopped and why, levels, totals) - never your game login. The topic name works like a password:
 anyone who knows it can read the messages, so keep the random one.
+
+## If it doesn't connect
+
+- **The page opens but says *offline*, or the log and totals never change:** update Grindstone
+  (versions before the phone layout can't keep their live connection over Tailscale's https
+  address). Then reload the page.
+- **The page doesn't open at all:**
+  1. Open the Tailscale app on the phone: it must say *Connected*, on the same account as the PC,
+     with the PC in its list.
+  2. Use the exact address `tailscale serve` printed, starting with `https://`. The very first
+     visit can take up to a minute while Tailscale sets up its certificate - try once more.
+  3. **502 Bad Gateway** means Grindstone isn't running on the PC.
+  4. Another VPN, an ad blocker or Android's *Private DNS* can block Tailscale - turn it off and
+     try again.
+  5. Open the same address in a browser on the PC. Works there? The problem is on the phone side.
+- **No notifications:** press **Send a test**. If it says sent but nothing arrives, check the
+  topic in the ntfy app is exactly the one on the page, and that ntfy may show notifications
+  (phone settings → Apps → ntfy). Battery savers can delay them - set ntfy to *unrestricted*.
+- **Live view says it can't see the game:** the game window is closed or minimized.
 
 ## Before you go out
 

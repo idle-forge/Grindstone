@@ -15,6 +15,9 @@ When asking for help, attach `panel.log` (and the client/crash logs if the game 
 
 ## Common problems
 
+**The phone page won't connect, or no notifications arrive.** See
+[On your phone → If it doesn't connect](PHONE.md#if-it-doesnt-connect).
+
 **"Game data isn't readable" / the panel asks you to restart the game**
 The add-on is loaded when the game starts. Close the game and start it with the Grindstone icon
 (not the 2009scape launcher's own client).

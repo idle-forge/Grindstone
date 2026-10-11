@@ -1,15 +1,30 @@
 # Changelog
 
-## On your phone
+## 📱 Grindstone on your phone
 
-- Phone layout (`/m`): status, totals, XP, the activity log, the game live (with a data saver), and Start /
-  Pause / Stop - phones get it automatically. Reach it privately with Tailscale
-  ([docs/PHONE.md](docs/PHONE.md))
-- Phone notifications through the free ntfy app: the bot stopping by itself, problems that need
-  you, level-ups and an optional progress summary every few hours
-- The live log works over https (Tailscale's address) too
+The big one: **check on your bot from anywhere**. Set it up in 5 minutes with
+[docs/PHONE.md](docs/PHONE.md).
+
+- **Watch the game live** on your phone - Data saver, Normal or Smooth, with the data it uses
+  shown as you watch. It stops by itself when you lock the phone
+- **Start, Pause and Stop** from the phone (Stop asks first - no ending a run by a pocket tap)
+- **A phone layout** with what the bot is doing, totals, per-hour rates, XP and levels gained,
+  and the activity log. Phones get it automatically; *Full panel* is one tap away
+- **Notifications** through the free ntfy app: the bot stopping by itself, problems that need
+  you (a frozen game, a step given up, auto login paused, a minimized window), level-ups, and an
+  optional progress summary every 1-8 hours. Only status text is sent - never your login
+- **Private by design**: reached through Tailscale, so only your own devices can see it - nothing
+  is opened to the internet
+- The live log now works over https (Tailscale's address) too
+
+### Fixes
+
 - Fish+cook: a fenced-off tree is skipped, and when no tree can be chopped the fire's logs are
-  spawned instead (no more "Cooked 0 of 22"); losing the game while travelling waits for it
+  spawned instead (no more "Cooked 0 of 22"). Where that happened, the next loads spawn their
+  logs straight away instead of walking at the fence again
+- Fish+cook: fish dropped to make room for logs no longer count as cooked ("Cooked 22 of 22
+  (2 raw dropped to make room for logs)")
+- Losing the game while travelling waits for it instead of ending the run
 
 ## More skills, longer routes
 

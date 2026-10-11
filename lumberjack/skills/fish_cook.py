@@ -34,6 +34,8 @@ CHOP_TRIES = 8
 CHOP_TIMEOUT_S = 60
 FIRE_TREE_RADIUS = 20      # tiles searched for a tree to cut fire logs from (game data)
 BAD_TREE_S = 300           # a tree the game says we "can't reach" is left alone this long
+NO_TREES_S = 3600          # no tree could be chopped here: spawn the fire logs straight away for this long
+NO_TREES_NEAR = 6          # ... within this many tiles of where that happened
 
 
 def usable_trees(allowed, levels, available=mouseover.available, names_known=False):
@@ -70,6 +72,8 @@ class FishCooker(Fisher):
         self.chop_activity = ActivityMonitor()
         self.bad_trees = {}                  # tile -> monotonic time it may be tried again
         self.last_tree = None
+        self.no_trees = {}                   # tile where no tree could be chopped -> until when
+        self.dropped_raw = set()             # raw fish slots dropped for log room this load
 
     def stats(self):
         hrs = (time.monotonic() - self.started) / 3600
@@ -162,6 +166,7 @@ class FishCooker(Fisher):
                              "(Fishing > Learn item)")
             return
         self.log.info("Cooking %d raw fish", len(raw))
+        self.dropped_raw = set()
         start_raw = list(raw)
         total, fires, stalls = len(raw), 0, 0
         just_lit = False
@@ -189,7 +194,11 @@ class FishCooker(Fisher):
             left = cooking.still_raw(self.ctx, raw)    # trust the hover, not the pixel diff
             stalls = 0 if len(left) < len(raw) else stalls + 1
             raw = left
-        self.log.info("Cooked %d of %d", total - len(raw), total)
+        dropped = len(set(start_raw) & self.dropped_raw)   # gone to make room for logs, not cooked
+        total -= dropped
+        raw = [i for i in raw if i not in self.dropped_raw]
+        self.log.info("Cooked %d of %d%s", total - len(raw), total,
+                      f" ({dropped} raw dropped to make room for logs)" if dropped else "")
         from lumberjack.core import backpack
         if not mouseover.available("eat") and backpack.source() is None:
             cooking.learn_eat(self.ctx, [i for i in start_raw if i not in raw])
@@ -259,6 +268,7 @@ class FishCooker(Fisher):
         drop = spare[:LOG_ROOM - free]
         if drop:
             self.log.info("Dropping %d fish to make room for fire logs", len(drop))
+            self.dropped_raw = getattr(self, "dropped_raw", set()) | {i for i in drop if backpack.kind(inv[i]["key"]) == "raw"}
             actions.drop_known(self.ctx, self.gs, drop)
             end = time.monotonic() + 3          # the drops land on the next game tick or two
             while time.monotonic() < end and 28 - len(self.occupied()) < LOG_ROOM:
@@ -303,6 +313,12 @@ class FishCooker(Fisher):
         if want <= 0:
             self.log.warning("No room in the backpack for a log")
             return []
+        here = self._tile_or_none() if self.gs and self.spawn_tools else None
+        if here and self.no_trees_near(here):
+            # we already found every tree here fenced off (Catherby): don't spend half a minute
+            # walking at them again
+            return self.spawn_logs(before, want, "No tree here can be chopped (found earlier) - spawning "
+                                   f"{want} logs for the fire")
         self.state = "chopping logs for a fire"
         handled = getattr(self, "chat_handled", ())
         self.chat_handled = tuple(handled) + ("can't reach that",)   # we pick another tree ourselves
@@ -329,12 +345,30 @@ class FishCooker(Fisher):
         self.log.warning("Couldn't chop any %s logs nearby", "/".join(types))
         if self.gs and self.spawn_tools:
             # every tree in reach is fenced off: spawn plain logs (singleplayer admin) rather
-            # than leave a whole load uncooked
-            from lumberjack import items
-            self.log.info("Spawning %d logs for the fire instead", want)
-            items.spawn(self.ctx, "logs", want)
-            new = self.only_logs(sorted(self.occupied() - before))
+            # than leave a whole load uncooked - and remember the place for next time
+            if here:
+                self.no_trees = getattr(self, "no_trees", {})
+                self.no_trees[here] = time.monotonic() + NO_TREES_S
+            return self.spawn_logs(before, want, f"Spawning {want} logs for the fire instead")
         return new
+
+    def _tile_or_none(self):
+        try:
+            return self._my_tile()
+        except Exception:
+            return None
+
+    def no_trees_near(self, tile):
+        now = time.monotonic()
+        self.no_trees = {t: until for t, until in getattr(self, "no_trees", {}).items() if until > now}
+        from lumberjack.core import interact
+        return any(interact.tiles_apart(t, tile) <= NO_TREES_NEAR for t in self.no_trees)
+
+    def spawn_logs(self, before, want, msg):
+        from lumberjack import items
+        self.log.info("%s", msg)
+        items.spawn(self.ctx, "logs", want)
+        return self.only_logs(sorted(self.occupied() - before))
 
     def ensure_axe(self):
         """Chopping fire logs needs an axe ("You do not have an axe to use."): spawn one when

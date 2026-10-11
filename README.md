@@ -18,6 +18,39 @@ every skill for hours, moving to better spots and better gear as you level up.
 
 ---
 
+## 📱 New: Grindstone on your phone
+
+<table>
+<tr>
+<td width="290" valign="top"><img src="docs/img/phone.png" width="270" alt="The phone layout: what the bot is doing, fish caught and per hour, XP gained, Start / Pause / Stop and Watch live"></td>
+<td valign="top">
+
+**Check on your bot from anywhere - the couch, the bus, the office.**
+
+- 👀 **Watch the game live** on your phone, with a data saver
+- ▶️ **Start, pause and stop** it with one tap
+- 📊 **Live totals and XP** - what it's doing, per-hour rates, levels gained
+- 📜 **The activity log** as it happens
+- 🔔 **Notifications** when it stops, gets stuck, needs you or levels up -
+  plus an optional summary every few hours
+- 🔒 **Private** - only your own devices can reach it. No accounts to make, nothing opened to
+  the internet, and it's all free
+
+**Set up in 5 minutes:**
+
+1. Install [Tailscale](https://tailscale.com/download) on your PC and phone (same account).
+2. On the PC run `tailscale serve --bg 8765` and open the address it prints on your phone.
+3. For notifications, install the **ntfy** app and follow **🔔 Phone notifications** on the page.
+
+👉 **[Full guide: docs/PHONE.md](docs/PHONE.md)**
+
+</td>
+</tr>
+</table>
+
+---
+
+- [📱 On your phone](#-new-grindstone-on-your-phone)
 - [Features](#features)
 - [Skills](#skills)
 - [Requirements](#requirements)
@@ -47,6 +80,8 @@ every skill for hours, moving to better spots and better gear as you level up.
   guessing from pixels.
 - **Leaves your PC alone.** Clicks and keys go into the game window directly - your real mouse
   stays free and the game can sit behind other windows.
+- **📱 On your phone.** Watch the game live, start and stop the bot, follow the log and get
+  notifications - privately, from anywhere. See [docs/PHONE.md](docs/PHONE.md).
 - **History.** The Plan tab shows what the last 24 hours earned: XP per skill, levels gained, and
   every run with why it ended.
 

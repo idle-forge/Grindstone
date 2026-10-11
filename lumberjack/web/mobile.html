@@ -48,6 +48,7 @@
   button.go { background: #2f5a2f; border-color: #3f7a3f; }
   button.stop { background: #5a2a22; border-color: #7a3a30; }
   button.small { min-height: 40px; font-weight: 600; }
+  #startplan[hidden] ~ #stop { grid-column: 1 / -1; }       /* no plan button: Stop takes the row */
   .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .stat { background: var(--panel2); border-radius: 8px; padding: 10px; min-width: 0; }
   .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums;

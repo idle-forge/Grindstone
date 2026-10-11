@@ -406,4 +406,50 @@ def test_logs_are_spawned_when_no_tree_can_be_chopped(monkeypatch):
     b.ensure_axe = lambda: None
     b.click_tree, b.scan_camera = (lambda types: None), (lambda what: None)
     b.reach_said = lambda: False
+    b.no_trees, b._my_tile = {}, lambda: (2810, 3436)
     assert b.chop_logs() == [21, 22] and spawned == [("logs", 2)]
+    # next load at the same place: logs straight away, no walking at the fenced trees again
+    inv[21] = inv[22] = {"id": -1, "key": ""}
+    clicks = []
+    b.click_tree = lambda types: clicks.append(types)
+    b._my_tile = lambda: (2812, 3434)
+    assert b.chop_logs() == [21, 22] and spawned == [("logs", 2)] * 2 and clicks == []
+    b._my_tile = lambda: (2840, 3434)                    # somewhere else: try the trees there
+    inv[21] = inv[22] = {"id": -1, "key": ""}
+    b.chop_logs()
+    assert clicks
+
+
+def test_fish_dropped_for_log_room_dont_count_as_cooked(monkeypatch, caplog):
+    import logging
+    from lumberjack.core import backpack
+    from lumberjack.skills import cooking, fish_cook
+    from lumberjack import actions
+    inv = [{"id": 590, "key": "tinderbox"}] + [{"id": 377, "key": "raw_lobster"}] * 24 + \
+          [{"id": 1351, "key": "bronze_axe"}] + [{"id": 995, "key": "coins"}, {"id": 1755, "key": "chisel"}]
+    monkeypatch.setattr(backpack, "slots", lambda: inv)
+    raw = list(range(1, 25))
+    monkeypatch.setattr(cooking, "sort_backpack", lambda ctx, keep: {"raw": raw, "log": []})
+    monkeypatch.setattr(actions, "drop_known", lambda ctx, gs, slots: [inv.__setitem__(i, {"id": -1, "key": ""})
+                                                                        for i in slots])
+    b = fish_cook.FishCooker.__new__(fish_cook.FishCooker)
+    b.ctx, b.gs, b.keep_slots, b.log = None, None, {0, 25, 26, 27}, logging.getLogger("fishing")
+    b.state, b.sleep = "", lambda s: None
+    b.cookable = lambda r: r
+    b.occupied = lambda frame=None: {i for i, s in enumerate(inv) if s["id"] >= 0}
+
+    def make_fire(logs):
+        b.make_log_room()                                   # full backpack: 2 raw fish make way
+        return [1]
+    b.make_fire, b.settle = make_fire, lambda: None
+    calls = []
+
+    def cook(ctx, slots):
+        calls.append(1)
+        return ("no_fire", []) if len(calls) == 1 else ("ok", slots)
+    monkeypatch.setattr(cooking, "cook", cook)
+    monkeypatch.setattr(cooking, "still_raw", lambda ctx, slots: [])
+    monkeypatch.setattr(fish_cook.mouseover, "available", lambda n: True)
+    with caplog.at_level(logging.INFO, "fishing"):
+        b.cook_load()
+    assert "Cooked 22 of 22 (2 raw dropped to make room for logs)" in caplog.text
