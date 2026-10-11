@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<defs>
+<linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F4F5F7"/><stop offset="0.45" stop-color="#9AA0A9"/><stop offset="1" stop-color="#3E424A"/></linearGradient>
+<linearGradient id="screen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#32302D"/><stop offset="0.6" stop-color="#1B1A18"/><stop offset="1" stop-color="#111010"/></linearGradient>
+<radialGradient id="forge" cx="0.5" cy="0.62" r="0.6"><stop offset="0" stop-color="#FF8A3C" stop-opacity="0.55"/><stop offset="0.6" stop-color="#FF8A3C" stop-opacity="0.15"/><stop offset="1" stop-color="#FF8A3C" stop-opacity="0"/></radialGradient>
+<linearGradient id="hot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF6C0"/><stop offset="0.5" stop-color="#FFC24E"/><stop offset="1" stop-color="#FF8E24"/></linearGradient>
+<linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C9CED5"/><stop offset="1" stop-color="#5A6069"/></linearGradient>
+<radialGradient id="emb"><stop offset="0" stop-color="#FFF8D2"/><stop offset="0.5" stop-color="#FFCB5E"/><stop offset="1" stop-color="#FF9D2E"/></radialGradient>
+</defs>
+<ellipse cx="31" cy="60.5" rx="15" ry="2" fill="#000" opacity="0.35"/>
+<rect x="14" y="3" width="34" height="56" rx="7" fill="url(#body)"/>
+<rect x="14" y="3" width="34" height="56" rx="7" fill="none" stroke="#000" stroke-opacity="0.55" stroke-width="1"/>
+<rect x="17" y="8" width="28" height="44" rx="3" fill="url(#screen)"/>
+<rect x="17" y="8" width="28" height="44" rx="3" fill="url(#forge)"/>
+<rect x="27" y="5" width="8" height="1.6" rx="0.8" fill="#22252A"/>
+<rect x="26" y="54.3" width="10" height="2" rx="1" fill="#2A2D33" opacity="0.8"/>
+<!-- a little anvil glowing on the screen -->
+<rect x="22" y="31" width="18" height="4" rx="1" fill="url(#steel)"/>
+<polygon points="22,31 18,33 22,35" fill="#8A9099"/>
+<polygon points="26,35 36,35 34,40 28,40" fill="#4A4F57"/>
+<rect x="24" y="40" width="14" height="2.4" rx="1" fill="#6A7079"/>
+<rect x="25" y="28.6" width="12" height="2.6" rx="1.3" fill="url(#hot)"/>
+<path d="M34 15 L35.2 18.4 L38.6 19.6 L35.2 20.8 L34 24.2 L32.8 20.8 L29.4 19.6 L32.8 18.4 Z" fill="url(#emb)"/>
+<circle cx="25" cy="21" r="0.9" fill="#FFCB5E"/>
+<circle cx="40" cy="25" r="0.7" fill="#FF9D2E"/>
+<!-- notification dot -->
+<circle cx="46" cy="7.5" r="5.5" fill="#E2B54A" stroke="#14120F" stroke-width="2"/>
+<circle cx="44.6" cy="6" r="1.6" fill="#FFF6C0" opacity="0.8"/>
+</svg>

@@ -1,6 +1,6 @@
 # Changelog
 
-## 📱 Grindstone on your phone
+## <img src="lumberjack/assets/phone.svg" height="26" alt=""> Grindstone on your phone
 
 The big one: **check on your bot from anywhere**. Set it up in 5 minutes with
 [docs/PHONE.md](docs/PHONE.md).

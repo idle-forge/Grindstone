@@ -113,6 +113,7 @@ def test_phone_page_and_its_endpoints(sent, monkeypatch, tmp_path):
     from lumberjack.web import server
     c = TestClient(server.app)
     assert "Phone notifications" in c.get("/m").text
+    assert c.get("/phone.svg").headers["content-type"].startswith("image/svg+xml")
     assert "wss" in c.get("/").text                      # the live log works over Tailscale's https too
     cfg = c.get("/api/notify").json()
     assert cfg["topic"].startswith("grindstone-")

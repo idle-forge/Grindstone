@@ -18,7 +18,9 @@ every skill for hours, moving to better spots and better gear as you level up.
 
 ---
 
-## 📱 New: Grindstone on your phone
+<a id="phone"></a>
+
+## <img src="lumberjack/assets/phone.svg" height="30" alt=""> New: Grindstone on your phone
 
 <table>
 <tr>
@@ -50,7 +52,7 @@ every skill for hours, moving to better spots and better gear as you level up.
 
 ---
 
-- [📱 On your phone](#-new-grindstone-on-your-phone)
+- [On your phone](#phone) - new!
 - [Features](#features)
 - [Skills](#skills)
 - [Requirements](#requirements)
@@ -80,7 +82,7 @@ every skill for hours, moving to better spots and better gear as you level up.
   guessing from pixels.
 - **Leaves your PC alone.** Clicks and keys go into the game window directly - your real mouse
   stays free and the game can sit behind other windows.
-- **📱 On your phone.** Watch the game live, start and stop the bot, follow the log and get
+- <img src="lumberjack/assets/phone.svg" height="18" alt=""> **On your phone.** Watch the game live, start and stop the bot, follow the log and get
   notifications - privately, from anywhere. See [docs/PHONE.md](docs/PHONE.md).
 - **History.** The Plan tab shows what the last 24 hours earned: XP per skill, levels gained, and
   every run with why it ended.

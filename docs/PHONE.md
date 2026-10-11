@@ -1,5 +1,7 @@
 # Grindstone on your phone
 
+<p align="center"><img src="../lumberjack/assets/phone.svg" width="96" alt=""></p>
+
 <p align="center"><img src="img/phone.png" width="300" alt="The phone layout"></p>
 
 Check on the bot and start, pause or stop it from your phone, even when you're out, and get a
