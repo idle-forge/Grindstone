@@ -147,3 +147,27 @@ def test_send_posts_to_the_topic_with_plain_headers(monkeypatch, tmp_path):
     assert h["click"] == "https://pc.tail.ts.net/m"
     monkeypatch.setattr(notify.urllib.request, "urlopen", lambda *a, **k: (_ for _ in ()).throw(OSError("offline")))
     assert "offline" in notify.send("x", "y", cfg=cfg, wait=True)       # never raises
+
+
+def test_phone_live_view_frames_shrink_for_mobile_data(monkeypatch):
+    import cv2
+    import numpy as np
+    from fastapi.testclient import TestClient
+    from lumberjack.web import server
+
+    class Win:
+        def grab(self):
+            rng = np.random.default_rng(1)
+            return (rng.random((503, 765, 3)) * 255).astype(np.uint8)
+
+    monkeypatch.setattr(server, "window", lambda: Win())
+    c = TestClient(server.app)
+    full = c.get("/snapshot.jpg?marks=false")
+    small = c.get("/snapshot.jpg?q=45&scale=0.6&marks=false")
+    assert full.status_code == small.status_code == 200 and small.headers["content-type"] == "image/jpeg"
+    assert len(small.content) < len(full.content) / 2
+    img = cv2.imdecode(np.frombuffer(small.content, np.uint8), cv2.IMREAD_COLOR)
+    assert img.shape[1] == round(765 * 0.6)
+    assert c.get("/snapshot.jpg?q=1000&scale=9&marks=false").status_code == 200      # clamped, not an error
+    page = c.get("/m").text
+    assert "Watch live" in page and "visibilitychange" in page

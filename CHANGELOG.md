@@ -2,7 +2,7 @@
 
 ## On your phone
 
-- Phone layout (`/m`): status, totals, XP, the activity log, a picture of the game, and Start /
+- Phone layout (`/m`): status, totals, XP, the activity log, the game live (with a data saver), and Start /
   Pause / Stop - phones get it automatically. Reach it privately with Tailscale
   ([docs/PHONE.md](docs/PHONE.md))
 - Phone notifications through the free ntfy app: the bot stopping by itself, problems that need

@@ -59,8 +59,9 @@
   td:not(:first-child) { text-align: right; }
   td small { color: var(--green); }
   #health { color: var(--muted); font-size: 13px; margin-top: 10px; }
-  #shot { width: 100%; display: block; border-radius: 8px; background: #000; image-rendering: pixelated;
-          aspect-ratio: 765 / 503; margin-bottom: 8px; }
+  #shot { width: 100%; display: block; border-radius: 8px; background: #000;
+          aspect-ratio: 765 / 503; margin-bottom: 10px; object-fit: contain; }
+  .card h2 .pill { margin-left: 6px; font-size: 11px; letter-spacing: 0; }
   #log { font: 12px/1.5 ui-monospace, Consolas, monospace; color: var(--muted); max-height: 45vh;
          overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
   #log .warn { color: var(--gold); }
@@ -121,13 +122,20 @@
 </div>
 
 <div class="card">
-  <h2>Game view</h2>
-  <img id="shot" alt="The bot's view of the game" hidden>
+  <h2>Game view <span id="live-pill" class="pill run" hidden>● LIVE</span></h2>
+  <div id="shotbox" hidden><img id="shot" alt="The bot's view of the game"></div>
   <div class="buttons">
-    <button id="look" class="small" type="button">Show the game</button>
-    <button id="auto" class="small" type="button" hidden>Auto-refresh: off</button>
+    <button id="live" class="go small" type="button">▶ Watch live</button>
+    <button id="look" class="small" type="button">Show a picture</button>
   </div>
-  <p class="hint">One picture at a time, to go easy on mobile data.</p>
+  <label for="quality">Live quality</label>
+  <select id="quality">
+    <option value="saver">Data saver - 1 picture a second, small</option>
+    <option value="normal">Normal - 2 a second</option>
+    <option value="smooth">Smooth - 4 a second, sharp (Wi-Fi)</option>
+  </select>
+  <label class="check"><input id="marks" type="checkbox"> Show what the bot sees (its markings)</label>
+  <p id="usage" class="hint">Live stops by itself when you lock the phone or switch apps.</p>
 </div>
 
 <div class="card">
@@ -297,21 +305,74 @@ document.addEventListener("visibilitychange", () => {
 connect();
 
 // ---- game view ----
-let autoTimer = null;
-function shoot() {
-  const img = $("shot");
-  img.hidden = false;
-  img.src = `/snapshot.jpg?t=${Date.now()}`;
-  $("look").textContent = "Refresh";
-  $("auto").hidden = false;
+// Live = one picture after another (not a video stream): works through Tailscale on every phone,
+// stops when the page is hidden, and counts the mobile data it uses.
+const QUALITY = { saver: { fps: 1, q: 45, scale: 0.6 }, normal: { fps: 2, q: 60, scale: 0.8 },
+                  smooth: { fps: 4, q: 75, scale: 1 } };
+const pref = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
+$("quality").value = pref("gs-quality") || "saver";
+$("marks").checked = pref("gs-marks") === "1";
+$("quality").onchange = () => pref("gs-quality", $("quality").value);
+$("marks").onchange = () => pref("gs-marks", $("marks").checked ? "1" : "0");
+let live = false, liveGen = 0, bytes = 0, frames = 0, liveSince = 0, lastUrl = null;
+
+function frameUrl() {
+  const p = QUALITY[$("quality").value] || QUALITY.saver;
+  return `/snapshot.jpg?q=${p.q}&scale=${p.scale}&marks=${$("marks").checked}&t=${Date.now()}`;
 }
-$("shot").onerror = () => { $("shot").hidden = true; say("Can't see the game window right now", true); };
-$("look").onclick = shoot;
-$("auto").onclick = () => {
-  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
-  else { shoot(); autoTimer = setInterval(() => document.visibilityState === "visible" && shoot(), 5000); }
-  $("auto").textContent = `Auto-refresh: ${autoTimer ? "every 5 s" : "off"}`;
+async function grab() {
+  const r = await fetch(frameUrl(), { cache: "no-store" });
+  if (!r.ok) throw new Error("no picture");
+  const blob = await r.blob();
+  bytes += blob.size;
+  frames += 1;
+  const url = URL.createObjectURL(blob);
+  $("shot").src = url;
+  $("shotbox").hidden = false;
+  if (lastUrl) URL.revokeObjectURL(lastUrl);
+  lastUrl = url;
+}
+const mb = (b) => b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.round(b / 1e3)} KB`;
+function showUsage() {
+  if (!frames) return;
+  const mins = (Date.now() - liveSince) / 60000;
+  const perHour = mins > 0.2 ? bytes / mins * 60 : 0;
+  $("usage").textContent = `Used ${mb(bytes)} this time` + (perHour ? ` · about ${mb(perHour)} an hour at this quality` : "") +
+    ". Stops by itself when you lock the phone or switch apps.";
+}
+
+async function liveLoop(gen) {
+  let fails = 0;
+  while (live && gen === liveGen) {
+    const t0 = Date.now(), p = QUALITY[$("quality").value] || QUALITY.saver;
+    try { await grab(); fails = 0; }
+    catch (e) {
+      if (++fails >= 5) { stopLive(); say("Can't see the game window right now", true); return; }
+    }
+    showUsage();
+    await new Promise(res => setTimeout(res, Math.max(50, 1000 / p.fps - (Date.now() - t0))));
+  }
+}
+function startLive() {
+  if (live) return;
+  live = true; liveGen += 1;
+  if (!frames) liveSince = Date.now();
+  $("live").textContent = "■ Stop live"; $("live").className = "stop small";
+  $("live-pill").hidden = false;
+  liveLoop(liveGen);
+}
+function stopLive() {
+  live = false; liveGen += 1;
+  $("live").textContent = "▶ Watch live"; $("live").className = "go small";
+  $("live-pill").hidden = true;
+}
+$("live").onclick = () => live ? stopLive() : (bytes = frames = 0, liveSince = Date.now(), startLive());
+$("look").onclick = async () => {
+  try { await grab(); } catch (e) { say("Can't see the game window right now", true); }
 };
+// a locked phone or another app: stop pulling pictures (no data used in your pocket)
+document.addEventListener("visibilitychange", () => { if (document.visibilityState !== "visible") stopLive(); });
+$("shot").onclick = () => $("shot").requestFullscreen && $("shot").requestFullscreen().catch(() => {});
 
 // ---- notifications ----
 const NF = ["enabled", "stopped", "problems", "levels"];

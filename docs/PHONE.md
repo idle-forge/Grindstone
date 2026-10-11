@@ -21,8 +21,10 @@ own devices can reach it.
    (`/m`); *Full panel* at the bottom opens the whole panel. Add it to your home screen for a
    one-tap shortcut.
 
-The phone layout shows what the bot is doing, its totals and XP, the activity log and a picture
-of the game (one at a time, to go easy on mobile data). **Start** starts the task as it was last
+The phone layout shows what the bot is doing, its totals and XP, the activity log and the game:
+**▶ Watch live** shows it live (Data saver, about 1 picture a second, is the default; Normal and
+Smooth look better and use more data - the page shows how much). Live stops by itself when you
+lock the phone or switch apps. Tap the picture for full screen. **Start** starts the task as it was last
 set up on the PC; **Start plan** starts the saved plan. Stop asks first, so a pocket tap can't end
 a long run.
 

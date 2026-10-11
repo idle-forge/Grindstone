@@ -1811,9 +1811,11 @@ def start_saved(w: StartSavedIn):
 
 
 @app.get("/snapshot.jpg")
-def snapshot():
-    """One frame of the bot's view - light on mobile data, unlike the live stream."""
-    jpg = _annotated_jpeg()
+def snapshot(q: int = 80, scale: float = 1.0, marks: bool = True):
+    """One frame of the bot's view. The phone's live view fetches these one after another (it
+    works through any proxy, pauses when the phone sleeps and can count the data it uses);
+    q (JPEG quality), scale and marks=false (no vision markings) make a frame smaller."""
+    jpg = _annotated_jpeg(quality=q, scale=scale, marks=marks)
     if jpg is None:
         return JSONResponse({"error": "can't see the game window"}, status_code=503)
     return StreamingResponse(iter([jpg]), media_type="image/jpeg", headers={"Cache-Control": "no-store"})
@@ -2459,7 +2461,7 @@ def _overlay(f):
     return trees.draw(f, trees.find_trees(f))
 
 
-def _annotated_jpeg():
+def _annotated_jpeg(quality=80, scale=1.0, marks=True):
     global _win
     try:
         f = window().grab()
@@ -2467,13 +2469,16 @@ def _annotated_jpeg():
         with _win_lock:
             _win = None  # game restarted / closed - re-find next time
         return None
-    img = _overlay(f)
+    img = _overlay(f) if marks else f.copy()
     n = inventory.count(f) if inventory.REF.exists() else -1
     st = ctl.status()
     label = f"{st['state']}  |  inv {n}/28" if n >= 0 else st["state"]
     cv2.rectangle(img, (4, 318), (4 + 9 * len(label), 338), (0, 0, 0), -1)
     cv2.putText(img, label, (8, 333), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (120, 255, 120), 1)
-    ok, jpg = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    scale = max(0.25, min(1.0, scale))
+    if scale < 1.0:
+        img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    ok, jpg = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, max(20, min(95, int(quality)))])
     return jpg.tobytes() if ok else None
 
 
