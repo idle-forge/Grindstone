@@ -150,9 +150,9 @@ variable to its folder before running setup.
 
 ## Everyday use
 
-- **Everything:** Controls → **🤖 Autopilot** → Start. Set the target level and skills to leave
+- **Everything:** **Task** tab → **🤖 Autopilot** → Start. Set the target level and skills to leave
   out on the **Settings** tab.
-- **One skill:** Controls → pick it → Start (its options are on the **Settings** tab). *Keep going after problems* (on by default) restarts
+- **One skill:** **Task** tab → pick it → Start (its options are on the **Settings** tab). *Keep going after problems* (on by default) restarts
   it where it was after a crash, a stall or a death.
 - **Many skills:** Plan tab → add steps (task, minutes and/or target level, place) or use
   **★ Starter plan**. See [docs/PLANS.md](docs/PLANS.md).

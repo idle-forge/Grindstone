@@ -29,7 +29,7 @@ products and loot if there's no bank nearby. Unknown items are only ever banked,
 
 ## 🤖 Autopilot
 
-Controls → **🤖 Autopilot** → **Start**. The target level (99 = everything) and skills to leave
+**Task** tab → **🤖 Autopilot** → **Start**. The target level (99 = everything) and skills to leave
 out are on the **Settings** tab. No steps needed. It uses its own settings (drop for XP, cook the
 catch, spawned food, no looting), wears the best weapon and armour for its levels, and shows its
 progress (total level) under Controls. It trains Attack/Strength/Defence to 10 first (enough HP for everything after),

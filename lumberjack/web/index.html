@@ -29,7 +29,8 @@
   .phoneico { height: 15px; vertical-align: -3px; }
   main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; padding: 16px 20px;
          max-width: 1340px; margin: 0 auto; }
-  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
+  /* one column: the controls and menus first, then the bot's view - not all the way down the page */
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } main > aside { order: -1; } }
   aside { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
   .card h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;
@@ -156,6 +157,9 @@
                                         box-shadow: inset 0 -2px 0 var(--gold); }
   .tabpanel { display: flex; flex-direction: column; gap: 16px; }
   .tabpanel[hidden] { display: none; }
+  .curtask { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 15px; font-weight: 600; }
+  .curtask .ico { width: 20px; height: 20px; color: var(--gold); }
+  .curtask button { margin-left: auto; padding: 4px 10px; font-size: 12px; font-weight: 600; }
   .need { background: #3a2a14; border: 1px solid #6a5420; color: var(--gold); border-radius: 8px;
           padding: 8px 10px; font-size: 13px; margin-top: 8px; }
   .need ul { margin: 4px 0 0 18px; padding: 0; }
@@ -275,8 +279,32 @@
     <!-- Controls -->
     <div class="card">
       <h2>Controls</h2>
+      <div id="curtask" class="curtask"></div>
+      <div class="row">
+        <button id="start" class="go grow">Start</button>
+        <button id="pause" class="grow" disabled>Pause</button>
+        <button id="stop" class="stop grow" disabled>Stop</button>
+      </div>
+      <div id="msg" class="msg"></div>
+      <div id="stopped" class="need" hidden></div>
+      <div id="planstatus" class="need info" hidden></div>
+      <div id="need"></div>
+      <div class="hint"><kbd>F12</kbd> stops the bot from anywhere.</div>
+      <div class="sp-note">⚠ Singleplayer only - using Grindstone on the online 2009scape servers will get your account banned.</div>
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Menus">
+      <button role="tab" data-tab="pick" aria-selected="true">Task</button>
+      <button role="tab" data-tab="task">Settings</button>
+      <button role="tab" data-tab="plan">Plan</button>
+      <button role="tab" data-tab="places">Places</button>
+      <button role="tab" data-tab="tools">Tools</button>
+    </nav>
+
+    <!-- Task picker: what Start runs -->
+    <div class="card tabpanel" data-tab="pick" role="tabpanel">
       <div class="field">
-        <label>Task</label>
+        <label>What should it train?</label>
         <label class="opt wide tile"><input type="radio" name="task" value="autopilot"><span><svg class="ico" aria-hidden="true"><use href="#i-autopilot"/></svg><b>Autopilot</b><small>trains the whole account by itself</small></span></label>
         <div class="group">Gathering &amp; moving</div>
         <div class="tiles">
@@ -309,27 +337,9 @@
           <label class="opt tile"><input type="radio" name="task" value="summoning"><span><svg class="ico" aria-hidden="true"><use href="#i-summoning"/></svg>Summoning</span></label>
         </div>
       </div>
-      <div class="row">
-        <button id="start" class="go grow">Start</button>
-        <button id="pause" class="grow" disabled>Pause</button>
-        <button id="stop" class="stop grow" disabled>Stop</button>
-      </div>
-      <div id="msg" class="msg"></div>
-      <div id="stopped" class="need" hidden></div>
-      <div id="planstatus" class="need info" hidden></div>
-      <div id="need"></div>
-      <div class="hint"><kbd>F12</kbd> stops the bot from anywhere.</div>
-      <div class="sp-note">⚠ Singleplayer only - using Grindstone on the online 2009scape servers will get your account banned.</div>
     </div>
 
-    <nav class="tabs" role="tablist" aria-label="Settings">
-      <button role="tab" data-tab="task" aria-selected="true">Settings</button>
-      <button role="tab" data-tab="plan">Plan</button>
-      <button role="tab" data-tab="places">Places</button>
-      <button role="tab" data-tab="tools">Tools</button>
-    </nav>
-
-    <div class="tabpanel" data-tab="task" role="tabpanel">
+    <div class="tabpanel" data-tab="task" role="tabpanel" hidden>
     <!-- Autopilot -->
     <div class="card" id="ap-card" hidden>
       <h2>🤖 Autopilot</h2>
@@ -1156,13 +1166,17 @@ function showTab(name) {
 }
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
 try {
-  let t = localStorage.getItem("lj-tab") || "task";
+  let t = localStorage.getItem("lj-tab") || "pick";
   t = { route: "tools", manual: "tools", map: "tools", items: "tools" }[t] || t;
-  showTab(document.querySelector(`.tabs button[data-tab="${t}"]`) ? t : "task");
-} catch (e) { showTab("task"); }
+  showTab(document.querySelector(`.tabs button[data-tab="${t}"]`) ? t : "pick");
+} catch (e) { showTab("pick"); }
 
 function showTask() {
   const task = document.querySelector("input[name=task]:checked")?.value || "woodcutting";
+  const nice = task[0].toUpperCase() + task.slice(1);
+  $("curtask").innerHTML = `<svg class="ico" aria-hidden="true"><use href="#i-${task}"/></svg><span>${nice}</span>` +
+    `<button type="button" title="Pick another task on the Task tab">Change</button>`;
+  $("curtask").querySelector("button").onclick = () => showTab("pick");
   $("ap-card").hidden = task !== "autopilot";
   $("fm-card").hidden = task !== "firemaking";
   $("fish-card").hidden = task !== "fishing";

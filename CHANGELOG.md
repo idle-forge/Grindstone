@@ -19,6 +19,9 @@ The big one: **check on your bot from anywhere**. Set it up in 5 minutes with
 
 ### Also new
 
+- All the menus in one spot: the task picker is now the **Task** tab, next to Settings, Plan,
+  Places and Tools - right under Start / Pause / Stop, which show the chosen task (*Change* jumps
+  to the Task tab). In a narrow window the controls and menus come first, above the bot's view
 - The Controls checklist folds away: *Will sort itself out* and *Good to know* are closed until
   you click them (the panel remembers), so the task settings below are in reach without
   scrolling. Anything that stops you starting is always shown
