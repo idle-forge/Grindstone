@@ -177,3 +177,18 @@ def test_a_cropped_game_with_a_busy_border_is_learned_from_the_screen(tmp_path, 
     monkeypatch.setattr(frames, "_raw", (data, 1024, 768))
     assert frames.learn_layout(game)
     assert np.array_equal(frames.apply_layout(data, 1024, 768), game)
+
+
+def test_a_half_drawn_frame_is_read_again(monkeypatch):
+    import numpy as np
+    from lumberjack.core import frames
+    full = np.full((503, 765, 3), 90, np.uint8)
+    torn = full.copy()
+    torn[4:200, 200:516] = 0                                   # the 3D view caught mid-draw
+    reads = [torn, full]
+    monkeypatch.setattr(frames, "_grab_once", lambda: reads.pop(0) if reads else torn)
+    assert np.array_equal(frames.grab(), full)
+    calls = []
+    monkeypatch.setattr(frames, "_grab_once", lambda: calls.append(1) or full)
+    frames.grab()
+    assert len(calls) == 1                                     # a complete frame is read once

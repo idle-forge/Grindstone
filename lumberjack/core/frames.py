@@ -40,7 +40,40 @@ def _close():
     _sock = _file = None
 
 
+VIEWPORT = (4, 4, 516, 338)      # the fixed-mode 3D view (x0, y0, x1, y1)
+HALF_DRAWN = 0.08                 # this much pure black in the 3D view: maybe caught mid-draw
+REREADS = 2
+
+
+def _black_share(img):
+    x0, y0, x1, y1 = VIEWPORT
+    v = img[y0:y1, x0:x1]
+    return float((v.max(axis=2) == 0).mean())
+
+
 def grab():
+    """The game's frame. One caught while the game was still drawing its 3D view has big black
+    patches (an add-on that copies the frame after drawing never sends those): read it again
+    and keep the most complete one."""
+    img = _grab_once()
+    if img is None or img.shape[:2] != (CANVAS_H, CANVAS_W):
+        return img
+    global last_error
+    black, err = _black_share(img), last_error
+    for _ in range(REREADS):
+        if black < HALF_DRAWN:
+            break
+        again = _grab_once()
+        if again is None or again.shape != img.shape:
+            break
+        b = _black_share(again)
+        if b < black:
+            img, black, err = again, b, last_error
+    last_error = err                    # what's said about the frame we return, not a failed re-read
+    return img
+
+
+def _grab_once():
     global _sock, _file, _off_until, last_error, _raw
     if time.monotonic() < _off_until:
         last_error = "the game's add-on is too old to send frames (restart the game with the Grindstone icon)"

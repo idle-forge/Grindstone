@@ -94,7 +94,7 @@ public final class InputAgent {
         byte[] head;
         byte[] body = null;
         try {
-            Object[] f = GameState.frame();
+            Object[] f = frameAfterDraw();
             body = (byte[]) f[2];
             head = ("ok " + f[0] + " " + f[1] + "\n").getBytes("UTF-8");
         } catch (Exception e) {
@@ -103,6 +103,22 @@ public final class InputAgent {
         os.write(head);
         if (body != null) os.write(body);
         os.flush();
+    }
+
+    private static final long FRAME_WAIT_MS = 300;
+
+    /** The frame copied right after the game finished drawing it (on its own thread, from the
+     *  per-frame hook): a copy taken while it draws can catch the 3D view half-drawn - black
+     *  patches in the panel's view. Not drawing (minimized) or no hook: read it as it is. */
+    private static Object[] frameAfterDraw() throws Exception {
+        if (GameThread.ready()) {
+            try {
+                return GameThread.call(GameState::frame, FRAME_WAIT_MS);
+            } catch (Exception e) {
+                // fall through
+            }
+        }
+        return GameState.frame();
     }
 
     private static String handle(String line) {

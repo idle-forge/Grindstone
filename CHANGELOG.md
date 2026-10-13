@@ -26,6 +26,8 @@ The big one: **check on your bot from anywhere**. Set it up in 5 minutes with
   (e.g. 1024x768): how the 765x503 game sits in it is learned while the window is on screen and
   remembered. That's what lets a minimized or covered game keep going
 - While waiting for a minimized game, the log says why the game's own picture can't be used
+- No more black patches in the bot's view: the game's add-on copies each picture just after the
+  game finishes drawing it (restart the game once to get it), and a half-drawn picture is read again
 - A minimized game during a bank trip or travel between tasks is waited for instead of ending the run
 - No more `ConnectionResetError [WinError 10054]` tracebacks in the console when a browser tab
   or phone drops its connection, and the panel no longer shows log lines twice after reconnecting
