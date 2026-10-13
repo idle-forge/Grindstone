@@ -22,6 +22,10 @@ The big one: **check on your bot from anywhere**. Set it up in 5 minutes with
 - **Minimize the game and the bot keeps going.** A minimized game stops drawing, which used to
   pause the bot; now, while a bot runs, Grindstone keeps the window up off-screen instead. Click
   it on the taskbar to bring it back; when the run ends it's minimized again
+- The game's own picture is used even when the game sits inside a bigger window (Fixed screen
+  mode in a 1024x768 window): the 765x503 game is found in it and remembered. That's what lets
+  a minimized or covered game keep going
+- A minimized game during a bank trip or travel between tasks is waited for instead of ending the run
 - No more `ConnectionResetError [WinError 10054]` tracebacks in the console when a browser tab
   or phone drops its connection, and the panel no longer shows log lines twice after reconnecting
 

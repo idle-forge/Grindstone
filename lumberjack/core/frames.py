@@ -6,13 +6,19 @@ game's UI thread (a frozen game was traced to screen grabs waiting on it).
 
 An add-on without the command is asked again after RETRY_S (a restarted game has the new one).
 """
+import json
 import socket
 import threading
 import time
+from pathlib import Path
 
 import numpy as np
 
 from lumberjack.core.agent import PORT
+
+CANVAS_W, CANVAS_H = 765, 503
+CROP_FILE = Path(__file__).resolve().parents[1] / "configs" / "frame_crop.json"
+_crop = None                      # {"WxH": [x, y]}: where the 765x503 game sits in a bigger frame
 
 TIMEOUT_S = 3.0
 RETRY_S = 300
@@ -65,7 +71,50 @@ def grab():
             last_error = f"the game's add-on isn't answering ({e})"
             _close()
             return None
-    last_error = None if (w, h) == (765, 503) else \
-        f"the game is drawing at {w}x{h} - switch it to Fixed screen mode (765x503)"
-    # even a dark frame (loading screen): never fall back to screen grabs while the add-on answers
-    return np.frombuffer(data, np.uint8).reshape(h, w, 4)[..., :3].copy()
+    img = np.frombuffer(data, np.uint8).reshape(h, w, 4)[..., :3]
+    if (w, h) == (CANVAS_W, CANVAS_H):
+        last_error = None
+        # even a dark frame (loading screen): never fall back to screen grabs while the add-on answers
+        return img.copy()
+    at = crop_offset(img)
+    if at is None:
+        last_error = f"the game is drawing at {w}x{h} - switch it to Fixed screen mode (765x503)"
+        return img.copy()
+    last_error = None
+    x, y = at
+    return img[y:y + CANVAS_H, x:x + CANVAS_W].copy()
+
+
+def _load_crop():
+    global _crop
+    if _crop is None:
+        try:
+            _crop = json.loads(CROP_FILE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            _crop = {}
+    return _crop
+
+
+def crop_offset(img):
+    """Where the fixed 765x503 game sits inside a bigger frame (Fixed screen mode in a bigger
+    window: the game is drawn at an offset with black around it). Found from the non-black
+    area when that is exactly 765x503, then remembered per frame size - a dark scene later
+    (night, a loading screen) can't move it. None until it has been seen once."""
+    h, w = img.shape[:2]
+    if w < CANVAS_W or h < CANVAS_H:
+        return None
+    key = f"{w}x{h}"
+    known = _load_crop().get(key)
+    ys, xs = np.where(img.max(axis=2) > 8)
+    if len(xs):
+        x, y = int(xs.min()), int(ys.min())
+        if (int(xs.max()) - x + 1, int(ys.max()) - y + 1) == (CANVAS_W, CANVAS_H):
+            if known != [x, y]:
+                _crop[key] = [x, y]
+                try:
+                    CROP_FILE.parent.mkdir(parents=True, exist_ok=True)
+                    CROP_FILE.write_text(json.dumps(_crop), encoding="utf-8")
+                except OSError:
+                    pass
+            return x, y
+    return tuple(known) if known else None

@@ -1519,7 +1519,21 @@ class BotController:
     def _ctx(self):
         from lumberjack.actions import Ctx
         from lumberjack.core.input import AgentInput
-        return Ctx(window(), AgentInput(), self._sleep)
+        return Ctx(window(), AgentInput(), self._sleep, grabber=self._grab_waiting)
+
+    def _grab_waiting(self):
+        """The game's picture for the recovery steps (tidy, bank trip, travel): a minimized game
+        is waited for instead of ending the run."""
+        from lumberjack.core.window import GameMinimized
+        said = False
+        while True:
+            try:
+                return window().grab()
+            except GameMinimized:
+                if not said:
+                    said = True
+                    logging.getLogger("panel").warning("The game window is minimized - waiting until it's back")
+                self._sleep(1)
 
     def _sleep(self, seconds):
         end = time.monotonic() + seconds

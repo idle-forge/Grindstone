@@ -94,3 +94,50 @@ def test_closing_the_panel_never_leaves_it_off_screen():
     p.tick(now=0)
     p.release()
     assert not park.is_parked(7) and g.place[4] == (100, 50, 900, 650)
+
+
+def test_the_game_is_found_inside_a_bigger_frame_and_remembered(tmp_path, monkeypatch):
+    import numpy as np
+    from lumberjack.core import frames
+    monkeypatch.setattr(frames, "CROP_FILE", tmp_path / "frame_crop.json")
+    monkeypatch.setattr(frames, "_crop", None)
+    big = np.zeros((768, 1024, 3), np.uint8)                 # Fixed screen mode in a 1024x768 window
+    big[0:503, 129:129 + 765] = 60                            # the game, black all around
+    big[0, 129] = big[502, 129 + 764] = 200
+    assert frames.crop_offset(big) == (129, 0)
+    dark = np.zeros((768, 1024, 3), np.uint8)                 # a loading screen: nothing to see
+    dark[200:210, 300:310] = 90
+    assert frames.crop_offset(dark) == (129, 0)               # still knows where the game is
+    monkeypatch.setattr(frames, "_crop", None)                # ... also after a restart
+    assert frames.crop_offset(dark) == (129, 0)
+    assert frames.crop_offset(np.zeros((700, 900, 3), np.uint8)) is None    # a size never seen
+
+
+def test_the_add_on_frame_is_cropped_to_the_game(tmp_path, monkeypatch):
+    import numpy as np
+    from lumberjack.core import frames
+    monkeypatch.setattr(frames, "CROP_FILE", tmp_path / "frame_crop.json")
+    monkeypatch.setattr(frames, "_crop", None)
+    big = np.zeros((768, 1024, 4), np.uint8)
+    big[0:503, 129:129 + 765, :3] = 77
+    payload = big.tobytes()
+
+    class Sock:
+        def sendall(self, b):
+            pass
+
+    class File:
+        def __init__(self):
+            self.lines = [b"ok 1024 768\n"]
+
+        def readline(self):
+            return self.lines.pop(0)
+
+        def read(self, n):
+            return payload[:n]
+
+    monkeypatch.setattr(frames, "_sock", Sock())
+    monkeypatch.setattr(frames, "_file", File())
+    monkeypatch.setattr(frames, "_off_until", 0.0)
+    img = frames.grab()
+    assert img.shape == (503, 765, 3) and int(img.min()) == 77 and frames.last_error is None
