@@ -47,7 +47,7 @@ You can be told when:
 
 - **the bot stops by itself** - finished, crashed, gave up (not when you press Stop)
 - **something needs you** - the game froze, a step was given up, auto login is paused, your
-  character keeps dying, or the game window is minimized (the bot waits until it isn't)
+  character keeps dying, or the game stopped drawing (the bot waits until it's back)
 - **a skill levels up**
 - **every few hours** - a progress summary while it runs
 
@@ -72,10 +72,10 @@ anyone who knows it can read the messages, so keep the random one.
 - **No notifications:** press **Send a test**. If it says sent but nothing arrives, check the
   topic in the ntfy app is exactly the one on the page, and that ntfy may show notifications
   (phone settings → Apps → ntfy). Battery savers can delay them - set ntfy to *unrestricted*.
-- **Live view says it can't see the game:** the game window is closed or minimized.
+- **Live view says it can't see the game:** the game window is closed, or minimized while no bot runs.
 
 ## Before you go out
 
 - Settings → System → Power: set the PC never to sleep while plugged in.
-- Don't minimize the game window - the bot waits while it is. Behind other windows, or the
-  screen switched off, is fine.
+- Minimizing the game is fine: while a bot runs, Grindstone keeps the window going off-screen
+  (click it on the taskbar to get it back). Behind other windows, or the screen off, is fine too.

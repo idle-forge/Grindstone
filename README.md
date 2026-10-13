@@ -81,7 +81,7 @@ every skill for hours, moving to better spots and better gear as you level up.
   NPCs, scenery, menus and interfaces, so the bot acts on what the game says is there instead of
   guessing from pixels.
 - **Leaves your PC alone.** Clicks and keys go into the game window directly - your real mouse
-  stays free and the game can sit behind other windows.
+  stays free, and the game can sit behind other windows or be minimized while the bot runs.
 - <img src="lumberjack/assets/phone.svg" height="18" alt=""> **On your phone.** Watch the game live, start and stop the bot, follow the log and get
   notifications - privately, from anywhere. See [docs/PHONE.md](docs/PHONE.md).
 - **History.** The Plan tab shows what the last 24 hours earned: XP per skill, levels gained, and

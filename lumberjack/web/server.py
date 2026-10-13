@@ -1741,6 +1741,18 @@ class Recorder:
 
 logbuf = LogBuffer()
 logging.getLogger().addHandler(logbuf)
+
+
+class _DropConnectionReset(logging.Filter):
+    """A browser tab closing or a phone losing signal ends its connection mid-way; on Windows
+    asyncio prints that as a 'ConnectionResetError: [WinError 10054]' traceback. Harmless."""
+
+    def filter(self, record):
+        e = record.exc_info[1] if record.exc_info else None
+        return not isinstance(e, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError))
+
+
+logging.getLogger("asyncio").addFilter(_DropConnectionReset())
 logging.getLogger().setLevel(logging.INFO)
 ctl = BotController()
 manual = ManualRunner()
@@ -2503,17 +2515,19 @@ STREAM_INTERVAL_S = 0.33           # ~3 frames/s: plenty to watch, light on the 
 
 
 @app.websocket("/ws")
-async def ws(sock: WebSocket):
+async def ws(sock: WebSocket, since: int = 0):
     await sock.accept()
-    last = max(0, logbuf.seq - 30)  # new viewers get the last 30 lines
+    # a reconnecting page says what it already has (since): no lines shown twice. New viewers -
+    # and pages that saw a panel from before a restart (since > seq) - get the last 30 lines.
+    last = since if 0 < since <= logbuf.seq else max(0, logbuf.seq - 30)
     try:
         while True:
             new = logbuf.since(last)
             if new:
                 last = new[-1][0]
-            await sock.send_json({**ctl.status(), "log": [t for _, t in new]})
+            await sock.send_json({**ctl.status(), "log": [t for _, t in new], "log_seq": last})
             await asyncio.sleep(0.5)
-    except (WebSocketDisconnect, RuntimeError):
+    except (WebSocketDisconnect, RuntimeError, OSError):    # the page closed / the phone lost signal
         pass
 
 
@@ -2550,6 +2564,7 @@ def restart_panel_process():
     flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
     subprocess.Popen([str(pyw if pyw.exists() else py), "-m", "lumberjack.start", "restart-panel", str(os.getpid())],
                      cwd=str(HERE.parents[1]), creationflags=flags)
+    _release_parked()
     logging.shutdown()
     os._exit(0)
 
@@ -2834,6 +2849,38 @@ def resume_plan():
     threading.Thread(target=go, name="resume", daemon=True).start()
 
 
+# ---- a minimized game keeps going ------------------------------------------------------------
+_parker = None
+
+
+def start_parker():
+    """While a bot runs, a minimized game window is kept up off-screen (core/park.py) - it keeps
+    drawing, so the bot carries on instead of waiting for the window to come back."""
+    global _parker
+    import atexit
+    import win32api
+    import win32gui
+    from lumberjack.core import park
+
+    def hwnd():
+        try:
+            return window().hwnd
+        except Exception:
+            return None
+
+    _parker = park.Parker(win32gui, win32api, hwnd, lambda: ctl.running)
+    atexit.register(_release_parked)
+    threading.Thread(target=_parker.loop, name="park", daemon=True).start()
+
+
+def _release_parked():
+    if _parker is not None:
+        try:
+            _parker.release()
+        except Exception:
+            pass
+
+
 def main():
     print(f"Grindstone control panel {version.label()}: http://127.0.0.1:{PORT}")
     resume_plan()
@@ -2841,6 +2888,7 @@ def main():
     threading.Thread(target=auto_login, name="auto-login", daemon=True).start()
     threading.Thread(target=idle_updater, name="idle-updater", daemon=True).start()
     notify.start(ctl.status, lambda: ctl.running)
+    start_parker()
     uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="warning")
 
 

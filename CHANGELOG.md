@@ -19,6 +19,12 @@ The big one: **check on your bot from anywhere**. Set it up in 5 minutes with
 
 ### Also new
 
+- **Minimize the game and the bot keeps going.** A minimized game stops drawing, which used to
+  pause the bot; now, while a bot runs, Grindstone keeps the window up off-screen instead. Click
+  it on the taskbar to bring it back; when the run ends it's minimized again
+- No more `ConnectionResetError [WinError 10054]` tracebacks in the console when a browser tab
+  or phone drops its connection, and the panel no longer shows log lines twice after reconnecting
+
 - All the menus in one spot: the task picker is now the **Task** tab, next to Settings, Plan,
   Places and Tools - right under Start / Pause / Stop, which show the chosen task (*Change* jumps
   to the Task tab). In a narrow window the controls and menus come first, above the bot's view

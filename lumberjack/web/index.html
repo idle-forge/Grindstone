@@ -1355,8 +1355,9 @@ $("update").onclick = async () => {
 };
 
 // ---- live status ----
+let logSeq = 0;
 function connect() {
-  const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+  const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?since=${logSeq}`);
   ws.onmessage = (e) => {
     const st = JSON.parse(e.data);
     running = st.running;
@@ -1448,6 +1449,7 @@ function connect() {
     pill.textContent = st.error ? "error" : st.paused ? "paused" : running ? "running" : st.manual ? "manual" : "idle";
     if (st.error) { $("msg").textContent = st.error; shownError = st.error; }
     else if (shownError && $("msg").textContent === shownError) { $("msg").textContent = ""; shownError = null; }
+    if (st.log_seq != null) logSeq = st.log_seq;            // a reconnect asks only for newer lines
     if (st.log.length) {
       const box = $("log"), stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 20;
       box.textContent += st.log.join("\n") + "\n";

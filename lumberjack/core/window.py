@@ -196,7 +196,8 @@ class GameWindow:
                 except win32gui.error:
                     pass
             return img
-        if self.minimized():
+        from lumberjack.core import park
+        if self.minimized() or park.is_parked(self.hwnd):     # (a parked window is off-screen: no screen grab)
             raise GameMinimized("the game window is minimized, and the bot can't get the game's picture "
                                 f"another way: {frames.last_error or 'no frame from the add-on'}. "
                                 "Restore the window, or fix that to let it run minimized")

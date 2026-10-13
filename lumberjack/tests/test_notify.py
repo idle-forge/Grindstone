@@ -173,3 +173,34 @@ def test_phone_live_view_frames_shrink_for_mobile_data(monkeypatch):
     assert c.get("/snapshot.jpg?q=1000&scale=9&marks=false").status_code == 200      # clamped, not an error
     page = c.get("/m").text
     assert "Watch live" in page and "visibilitychange" in page
+
+
+def test_a_reconnecting_page_gets_no_log_line_twice():
+    import logging
+    from fastapi.testclient import TestClient
+    from lumberjack.web import server
+    c = TestClient(server.app)
+    log = logging.getLogger("fishing")
+    log.info("line A")
+    with c.websocket_connect("/ws") as w:
+        first = w.receive_json()
+    assert "line A" in " ".join(first["log"])
+    log.info("line B")
+    with c.websocket_connect(f"/ws?since={first['log_seq']}") as w:
+        again = w.receive_json()
+    assert not any("line A" in t for t in again["log"]) and any("line B" in t for t in again["log"])
+    with c.websocket_connect(f"/ws?since={first['log_seq'] + 10**6}") as w:     # a panel restarted
+        assert w.receive_json()["log"]
+
+
+def test_connection_reset_tracebacks_are_not_printed():
+    import logging
+    import sys
+    from lumberjack.web import server  # noqa: F401  (adds the filter)
+    lg = logging.getLogger("asyncio")
+    try:
+        raise ConnectionResetError(10054, "An existing connection was forcibly closed by the remote host")
+    except ConnectionResetError:
+        rec = lg.makeRecord("asyncio", logging.ERROR, __file__, 1, "Exception in callback", (), sys.exc_info())
+    assert not lg.filter(rec)
+    assert lg.filter(lg.makeRecord("asyncio", logging.ERROR, __file__, 1, "something else", (), None))
