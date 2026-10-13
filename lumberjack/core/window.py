@@ -20,6 +20,19 @@ _last = None  # (hwnd or "agent", time, image) of the most recent capture
 _full_at = 0.0  # last full-content PrintWindow
 
 
+def _learn(screen):
+    """The game is on screen: let the add-on's frame reading learn how the game sits in a bigger
+    frame, so it can be used later when the window is minimized or covered."""
+    try:
+        from lumberjack.core import frames
+        if frames.learn_layout(screen):
+            import logging
+            logging.getLogger("panel").info("Learned how the game draws its picture - the bot can keep "
+                                            "going while the game is minimized now")
+    except Exception:
+        pass
+
+
 class GameMinimized(RuntimeError):
     """The game window is minimized - Windows gives it no size, so there's nothing to capture."""
 
@@ -212,13 +225,16 @@ class GameWindow:
                         x, y = win32gui.ScreenToClient(self.hwnd, win32gui.GetWindowRect(self.canvas_hwnd)[:2])
                         self.canvas_offset = (x, y)
                     _last = (self.canvas_hwnd, time.monotonic(), img)
+                    _learn(img)
                     return img
         # fallback: PrintWindow the whole client and crop the canvas out of it
         client = self.grab_client()
         if self.canvas_offset is None:
             self.canvas_offset = self._locate_canvas(client)
         x, y = self.canvas_offset
-        return client[y:y + CANVAS_H, x:x + CANVAS_W]
+        img = client[y:y + CANVAS_H, x:x + CANVAS_W]
+        _learn(img)
+        return img
 
     def canvas_to_screen(self, cx, cy):
         """Canvas coords -> absolute screen coords (for mouse input later)."""

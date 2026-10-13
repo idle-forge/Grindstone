@@ -144,14 +144,13 @@ class Woodcutter:
     def grab(self):
         from lumberjack.core.window import GameMinimized
         self.check_stop()
-        warned = False
+        from lumberjack.core import frames
+        note = frames.WaitNote()
         while True:
             try:
                 return self.win.grab()
             except GameMinimized:
-                if not warned:   # wait it out instead of crashing (and keep F12 / Stop working)
-                    log.warning("The game window is minimized - waiting until it's back")
-                    warned = True
+                note.say(log)    # wait it out instead of crashing (and keep F12 / Stop working)
                 before, self.state = self.state, "game minimized"
                 self._watch_marker = None    # minimized isn't stalled: the "no progress" clock waits
                 time.sleep(1.0)

@@ -141,3 +141,39 @@ def test_the_add_on_frame_is_cropped_to_the_game(tmp_path, monkeypatch):
     monkeypatch.setattr(frames, "_off_until", 0.0)
     img = frames.grab()
     assert img.shape == (503, 765, 3) and int(img.min()) == 77 and frames.last_error is None
+
+
+def test_a_game_drawn_765_wide_into_a_bigger_buffer_is_learned_from_the_screen(tmp_path, monkeypatch):
+    import numpy as np
+    from lumberjack.core import frames
+    monkeypatch.setattr(frames, "CROP_FILE", tmp_path / "frame_crop.json")
+    monkeypatch.setattr(frames, "_crop", None)
+    monkeypatch.setattr(frames, "_learn_at", 0.0)
+    rng = np.random.default_rng(3)
+    game = (rng.random((503, 765, 3)) * 200 + 20).astype(np.uint8)     # what's on screen
+    buf = np.zeros((1024 * 768, 4), np.uint8)
+    buf[:765 * 503, :3] = game.reshape(-1, 3)                           # rows 765 wide, then leftovers
+    buf[765 * 503:, :3] = 120
+    data = buf.tobytes()
+    monkeypatch.setattr(frames, "_raw", (data, 1024, 768))
+    assert frames.apply_layout(data, 1024, 768) is None and frames.needs_layout()
+    assert frames.learn_layout(game)
+    out = frames.apply_layout(data, 1024, 768)
+    assert out.shape == (503, 765, 3) and np.array_equal(out, game)
+    monkeypatch.setattr(frames, "_crop", None)                          # remembered after a restart
+    assert np.array_equal(frames.apply_layout(data, 1024, 768), game)
+
+
+def test_a_cropped_game_with_a_busy_border_is_learned_from_the_screen(tmp_path, monkeypatch):
+    import numpy as np
+    from lumberjack.core import frames
+    monkeypatch.setattr(frames, "CROP_FILE", tmp_path / "frame_crop.json")
+    monkeypatch.setattr(frames, "_crop", None)
+    monkeypatch.setattr(frames, "_learn_at", 0.0)
+    rng = np.random.default_rng(4)
+    big = (rng.random((768, 1024, 3)) * 255).astype(np.uint8)          # nothing black around it
+    game = big[40:543, 100:865].copy()
+    data = np.dstack([big, np.zeros((768, 1024), np.uint8)]).tobytes()
+    monkeypatch.setattr(frames, "_raw", (data, 1024, 768))
+    assert frames.learn_layout(game)
+    assert np.array_equal(frames.apply_layout(data, 1024, 768), game)

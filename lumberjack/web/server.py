@@ -1524,15 +1524,14 @@ class BotController:
     def _grab_waiting(self):
         """The game's picture for the recovery steps (tidy, bank trip, travel): a minimized game
         is waited for instead of ending the run."""
+        from lumberjack.core import frames
         from lumberjack.core.window import GameMinimized
-        said = False
+        note = frames.WaitNote()
         while True:
             try:
                 return window().grab()
             except GameMinimized:
-                if not said:
-                    said = True
-                    logging.getLogger("panel").warning("The game window is minimized - waiting until it's back")
+                note.say(logging.getLogger("panel"))
                 self._sleep(1)
 
     def _sleep(self, seconds):

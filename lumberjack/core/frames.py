@@ -41,7 +41,7 @@ def _close():
 
 
 def grab():
-    global _sock, _file, _off_until, last_error
+    global _sock, _file, _off_until, last_error, _raw
     if time.monotonic() < _off_until:
         last_error = "the game's add-on is too old to send frames (restart the game with the Grindstone icon)"
         return None
@@ -71,21 +71,38 @@ def grab():
             last_error = f"the game's add-on isn't answering ({e})"
             _close()
             return None
+    _raw = (data, w, h)
     img = np.frombuffer(data, np.uint8).reshape(h, w, 4)[..., :3]
     if (w, h) == (CANVAS_W, CANVAS_H):
         last_error = None
         # even a dark frame (loading screen): never fall back to screen grabs while the add-on answers
         return img.copy()
-    at = crop_offset(img)
-    if at is None:
+    if w < CANVAS_W or h < CANVAS_H:
         last_error = f"the game is drawing at {w}x{h} - switch it to Fixed screen mode (765x503)"
         return img.copy()
+    out = apply_layout(data, w, h)
+    if out is None:
+        last_error = (f"the game's picture is {w}x{h}, not the game's 765x503, and how the game sits in "
+                      "it isn't known yet - keep the game window on screen for a minute while a bot runs "
+                      "so Grindstone can learn it")
+        return img.copy()
     last_error = None
-    x, y = at
-    return img[y:y + CANVAS_H, x:x + CANVAS_W].copy()
+    return out
 
 
-def _load_crop():
+# ---- a frame bigger than the game ---------------------------------------------------------
+# The game client's frame buffer can be bigger than the 765x503 game (e.g. 1024x768: the window's
+# first size). Either the game sits in it at an offset ("crop"), or the game is drawn 765 pixels
+# wide into the start of the bigger buffer ("restride"). Which one is learned by comparing with
+# the picture on screen while the window is visible (learn_layout), or from the black border
+# around a cropped game; remembered per size in configs/frame_crop.json.
+_raw = None                       # (bytes, w, h) of the last frame from the add-on
+_learn_at = 0.0
+LEARN_EVERY_S = 10.0
+MATCH_DIFF = 14.0                 # mean difference (0-255) for a layout to count as the same picture
+
+
+def _layouts():
     global _crop
     if _crop is None:
         try:
@@ -95,26 +112,111 @@ def _load_crop():
     return _crop
 
 
+def _save_layout(key, lay):
+    if _layouts().get(key) == lay:
+        return
+    _crop[key] = lay
+    try:
+        CROP_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CROP_FILE.write_text(json.dumps(_crop), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _restride(data):
+    n = CANVAS_W * CANVAS_H * 4
+    if len(data) < n:
+        return None
+    return np.frombuffer(data[:n], np.uint8).reshape(CANVAS_H, CANVAS_W, 4)[..., :3].copy()
+
+
+def apply_layout(data, w, h):
+    """The 765x503 game out of a bigger frame, or None while its layout isn't known."""
+    key = f"{w}x{h}"
+    lay = _layouts().get(key)
+    if isinstance(lay, list):                                  # older files: a plain [x, y]
+        lay = {"crop": lay}
+    if lay and lay.get("restride"):
+        return _restride(data)
+    img = np.frombuffer(data, np.uint8).reshape(h, w, 4)[..., :3]
+    at = crop_offset(img)
+    if at is None:
+        return None
+    x, y = at
+    return img[y:y + CANVAS_H, x:x + CANVAS_W].copy()
+
+
 def crop_offset(img):
-    """Where the fixed 765x503 game sits inside a bigger frame (Fixed screen mode in a bigger
-    window: the game is drawn at an offset with black around it). Found from the non-black
-    area when that is exactly 765x503, then remembered per frame size - a dark scene later
-    (night, a loading screen) can't move it. None until it has been seen once."""
+    """Where the fixed 765x503 game sits inside a bigger frame: from the non-black area when that
+    is exactly 765x503 (black around the game), else what was learned for this size before."""
     h, w = img.shape[:2]
     if w < CANVAS_W or h < CANVAS_H:
         return None
     key = f"{w}x{h}"
-    known = _load_crop().get(key)
+    known = _layouts().get(key)
+    if isinstance(known, list):
+        known = {"crop": known}
+    if known and known.get("restride"):
+        return None
     ys, xs = np.where(img.max(axis=2) > 8)
     if len(xs):
         x, y = int(xs.min()), int(ys.min())
         if (int(xs.max()) - x + 1, int(ys.max()) - y + 1) == (CANVAS_W, CANVAS_H):
-            if known != [x, y]:
-                _crop[key] = [x, y]
-                try:
-                    CROP_FILE.parent.mkdir(parents=True, exist_ok=True)
-                    CROP_FILE.write_text(json.dumps(_crop), encoding="utf-8")
-                except OSError:
-                    pass
+            _save_layout(key, {"crop": [x, y]})
             return x, y
-    return tuple(known) if known else None
+    return tuple(known["crop"]) if known else None
+
+
+def needs_layout():
+    return _raw is not None and (_raw[1], _raw[2]) != (CANVAS_W, CANVAS_H) and \
+        apply_layout(*_raw) is None
+
+
+def learn_layout(screen):
+    """The window is on screen and `screen` is the game as copied from it: find which reading
+    of the add-on's bigger frame gives the same picture, and remember it. True when learned."""
+    global _learn_at
+    if not needs_layout() or time.monotonic() - _learn_at < LEARN_EVERY_S:
+        return False
+    _learn_at = time.monotonic()
+    data, w, h = _raw
+    key = f"{w}x{h}"
+    screen = screen.astype(np.int16)
+
+    def diff(cand):
+        return float(np.abs(cand.astype(np.int16) - screen).mean()) if cand is not None and \
+            cand.shape == screen.shape else 1e9
+
+    cands = [({"restride": True}, _restride(data))]
+    img = np.frombuffer(data, np.uint8).reshape(h, w, 4)[..., :3]
+    try:
+        import cv2
+        r = cv2.matchTemplate(img, screen.astype(np.uint8), cv2.TM_SQDIFF)
+        x, y = cv2.minMaxLoc(r)[2]
+        cands.append(({"crop": [int(x), int(y)]}, img[y:y + CANVAS_H, x:x + CANVAS_W]))
+    except Exception:
+        pass
+    best = min(cands, key=lambda c: diff(c[1]))
+    if diff(best[1]) > MATCH_DIFF:
+        return False
+    _save_layout(key, best[0])
+    return True
+
+
+class WaitNote:
+    """Says once that we're waiting for a minimized game - with why the game's own picture can't
+    be used meanwhile - and again whenever that reason changes (at most once a minute)."""
+
+    def __init__(self):
+        self.said, self.reason, self.at = False, None, 0.0
+
+    def say(self, log):
+        reason = last_error or "no reason given"
+        now = time.monotonic()
+        if not self.said:
+            self.said, self.reason, self.at = True, reason, now
+            log.warning("The game window is minimized - waiting until it's back (the game's own "
+                        "picture can't be used: %s)", reason)
+        elif reason != self.reason and now - self.at > 60:
+            self.reason, self.at = reason, now
+            log.warning("Still waiting for the game window - now: %s", reason)
