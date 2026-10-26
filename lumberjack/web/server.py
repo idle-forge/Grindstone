@@ -826,6 +826,7 @@ class BotController:
     def start(self, s: Settings):
         if self.running:
             return "already running"
+        login_now()                                # logged out? auto login tries right away
         logging.getLogger("panel").info("Grindstone %s - starting %s", version.label(), s.task)
         if manual.busy:
             return f"wait for '{manual.busy}' to finish"
@@ -990,6 +991,7 @@ class BotController:
     def start_plan(self, plan: Plan, after=-1, ends_at=None):
         if self.running:
             return "already running"
+        login_now()
         if manual.busy or rec.running:
             return "wait for the manual action / map recorder to finish"
         if not plan.steps and not plan.autopilot:
@@ -1293,6 +1295,8 @@ class BotController:
             if self.plan_info is not None:
                 self.plan_info["attempt"] = failures + 1
             fresh = first_as_is and attempt == 1
+            if fresh and gamestate.shared() is not None and not self._wait_ready(log):
+                return False                       # logged out at Start: log in first, then run
             if not fresh:
                 self._wait_for_game(log)
                 target = back_to or place
@@ -1506,8 +1510,10 @@ class BotController:
                 except Exception:                   # can't tell (an odd answer): don't hold the plan up
                     return True
             if not said:
-                log.warning("Waiting for the game to be up and logged in (log in, or turn on Auto login "
-                            "in the Tools tab so it logs in by itself)")
+                login_now()
+                why = auto_login_problem()
+                log.warning("Waiting for the game to be up and logged in%s",
+                            f" - {why}" if why else " (auto login is on - it logs in by itself)")
                 said = True
             self._doing("waiting for the game - log in (or turn on Auto login)")
             try:
@@ -2667,26 +2673,67 @@ def load_login():
         return {"user": "", "password": "", "enabled": False}
 
 
+_login_kick = threading.Event()     # Start pressed: try to log in now (and lift a pause)
+_login_why = None                   # why auto login isn't logging in right now (None: nothing stops it)
+
+
+def login_now():
+    """A bot is starting or waiting for the game: if we're at the login screen, log in straight
+    away instead of after the retry wait - and lift a pause left by failed logins earlier."""
+    _login_kick.set()
+
+
+def auto_login_problem():
+    """Why auto login won't get us back in by itself, in words - or None when it will (or is)."""
+    cfg = load_login()
+    if not cfg["enabled"]:
+        return "Auto login is off - turn it on in the Tools tab, or log in yourself"
+    if not (cfg["user"] and cfg["password"]):
+        return "Auto login has no username/password saved - add them in the Tools tab"
+    return _login_why
+
+
 def auto_login():
     """Whenever the game sits at its login screen and auto login is on: log in (the client's own
     login action, via the add-on). Covers the first start, a crash restart and a disconnect."""
+    global _login_why
     from lumberjack.core.gamestate import GameState, GameStateError
     log = logging.getLogger("login")
     gs = GameState()
     last_try, fails, paused_until = float("-inf"), 0, 0.0     # -inf: the clock may start near 0 at boot
+    not_ready_said = 0.0
     while True:
-        time.sleep(5)
+        time.sleep(1)                         # (checks each second, so Start is acted on at once)
+        if _login_kick.is_set():
+            _login_kick.clear()
+            if paused_until or fails:
+                log.info("Auto login: trying again now (a bot was started)")
+            last_try, fails, paused_until = float("-inf"), 0, 0.0
         cfg = load_login()
-        if not (cfg["enabled"] and cfg["user"] and cfg["password"]) or time.monotonic() < paused_until:
+        if not (cfg["enabled"] and cfg["user"] and cfg["password"]):
+            continue
+        if time.monotonic() < paused_until:
+            _login_why = (f"Auto login is paused for {int((paused_until - time.monotonic()) // 60) + 1} min after "
+                          "failed logins - check the username and password (Tools tab), or press Start to try now")
             continue
         try:
-            if gs._q("tick").get("state") != 10 or time.monotonic() - last_try < LOGIN_RETRY_S:
+            state = gs._q("tick").get("state")
+            if state != 10:
+                _login_why = None
+                continue
+            if time.monotonic() - last_try < LOGIN_RETRY_S:
                 continue
             r = gs.login(cfg["user"], cfg["password"])
         except GameStateError:
             continue                          # no game / an add-on without login: nothing to do
         if not r.get("ok"):
+            # e.g. the login screen is showing a message or busy: say so (once a minute), retry
+            _login_why = f"Auto login is waiting for the login screen: {r.get('why') or 'not ready'}"
+            if time.monotonic() - not_ready_said > 60:
+                not_ready_said = time.monotonic()
+                log.warning("%s - trying again", _login_why)
             continue
+        _login_why = None
         last_try = time.monotonic()
         log.info("Logging in as %s", cfg["user"])
         end = time.monotonic() + 30

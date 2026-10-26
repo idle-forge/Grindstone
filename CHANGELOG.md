@@ -41,6 +41,11 @@ The big one: **check on your bot from anywhere**. Set it up in 5 minutes with
 
 ### Fixes
 
+- Logged out: pressing Start (or a plan/Autopilot step) makes auto login try straight away - also
+  after a pause from failed logins - and the bot waits until it's in the game before starting.
+  When auto login can't log in (off, no password saved, paused, or the login screen isn't ready),
+  the log says why, and the phone gets a notification
+
 - Fish+cook: a fenced-off tree is skipped, and when no tree can be chopped the fire's logs are
   spawned instead (no more "Cooked 0 of 22"). Where that happened, the next loads spawn their
   logs straight away instead of walking at the fence again

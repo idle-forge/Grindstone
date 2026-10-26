@@ -37,6 +37,8 @@ PROBLEMS = [
     (r"Giving up after", "Grindstone gave up on a step", 4),
     (r"frozen for", "The game froze - restarting it", 4),
     (r"Auto login paused", "Auto login paused", 4),
+    (r"Waiting for the game to be up and logged in - ", "Logged out - the bot is waiting to log in", 4),
+    (r"Auto login is waiting for the login screen", "Auto login can't log in yet", 3),
     (r"Login didn't go through", "Login problem", 3),
     (r"window is minimized", "The game window is minimized - the bot is waiting", 3),
     (r"Died \d+ times", "Your character keeps dying", 4),
