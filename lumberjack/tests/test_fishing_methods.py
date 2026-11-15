@@ -127,3 +127,16 @@ def test_not_cooking_drops_the_axe_and_tinderbox_but_keeps_coins(monkeypatch):
     b.log = __import__("logging").getLogger("t")
     b.drop_fire_tools()
     assert sorted(dropped) == [1, 3] and b.keep_slots == {0, 4}
+
+
+def test_a_bait_load_always_leaves_one_slot_empty(monkeypatch):
+    # not cooking: drop_at is 28 - but the game won't fish with the backpack full of bait
+    inv = slots("karambwan_vessel", "coins")
+    f = karambwan_fisher(monkeypatch, inv)
+    f.drop_at = 28
+    assert f.load_size() == 27
+    for i in range(2, 27):
+        inv[i] = {"id": 3142, "key": "raw_karambwan"}      # bait all used up: 27 filled
+    assert f.load_full(occ(inv))                          # drop now - no 0-bait spawn loop
+    inv[26] = {"id": -1, "key": None}
+    assert not f.load_full(occ(inv)) and f.load_size() - sum(occ(inv)) == 1

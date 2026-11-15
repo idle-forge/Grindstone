@@ -72,7 +72,8 @@ TOOL_ITEMS = {"net": ["small_fishing_net"], "bait": ["fishing_rod", "fishing_bai
 STACKS = {"fishing_bait": 500, "feather": 500}
 # bait that doesn't stack on this server: one per slot, each catch turns one into a fish. A load
 # = the free slots filled with bait; when it's all used up the backpack is full of fish.
-SLOT_BAIT = {"karambwan": "raw_karambwanji"}   # stackables spawn as one stack of this many
+SLOT_BAIT = {"karambwan": "raw_karambwanji"}
+SLOT_BAIT_FREE = 1    # the game won't fish with no empty slot, even though the catch replaces a bait   # stackables spawn as one stack of this many
 
 CANDIDATES_TRIED = 6
 WALK_TO_SPOT_TILES = 40           # an off-screen spot this close is walked to (game data)
@@ -304,8 +305,13 @@ class Fisher(BotBase):
                 occ = inventory.occupied(frame)
                 self.check_bait(occ)
                 key, bait = self.slot_bait()
-                if key and not bait and sum(occ) < self.drop_at:
-                    self.spawn_slot_bait(key, self.drop_at - sum(occ))
+                if key and not bait and sum(occ) < self.load_size():
+                    self.spawn_slot_bait(key, self.load_size() - sum(occ))
+                    continue
+                if key and bait and sum(occ) >= 28:          # no empty slot: the game won't fish
+                    self.log.info("Backpack full of bait - dropping one so there's room to fish")
+                    actions.drop_known(self.ctx, self.gs, [bait[-1]])
+                    self.sleep(SERVER_TICK * 2)
                     continue
                 if self.load_full(occ):
                     self.handle_full_inventory()
@@ -440,10 +446,15 @@ class Fisher(BotBase):
     def load_full(self, occ):
         """Time to drop/bank/cook: the backpack is at drop_at - and with one-per-slot bait, the
         bait is used up (until then the bait slots fill up the backpack by design)."""
-        if sum(occ) < self.drop_at:
-            return False
         key, bait = self.slot_bait()
+        if sum(occ) < (self.load_size() if key else self.drop_at):
+            return False
         return not (key and bait)
+
+    def load_size(self):
+        """Filled slots that make a full load. With one-per-slot bait, one slot always stays empty
+        (the game says "You can't carry any more fish" otherwise)."""
+        return min(self.drop_at, 28 - SLOT_BAIT_FREE) if SLOT_BAIT.get(self.method) else self.drop_at
 
     def spawn_slot_bait(self, key, n):
         from lumberjack import items
