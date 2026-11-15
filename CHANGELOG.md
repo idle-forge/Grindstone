@@ -1,5 +1,12 @@
 # Changelog
 
+## ⚡ Faster dropping
+
+- Full backpacks are dropped with **shift-click** when the game makes "Drop" the left-click
+  option while Shift is held - checked from the game's own menu before every click, so it never
+  clicks the wrong thing. Clients without it keep using the right-click menu. About twice as
+  fast for karambwan, sharks and every other drop-the-load task
+
 ## 🎣 Monkfish and karambwan
 
 - **Karambwan fishing** (Fishing 65, Karamja): the fastest Fishing XP - about 3.5x sharks at

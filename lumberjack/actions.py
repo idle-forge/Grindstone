@@ -477,26 +477,76 @@ def use_on_slot(ctx, gs, item_slot, target_slot):
     return False
 
 
-def drop_known(ctx, gs, slots):
-    """Drop exactly these slots by the menu's "Drop" row (game data) - for items the caller knows
-    by name (cut gems, spawned bones...), which the generic product check would keep."""
+# With game data: does holding Shift make "Drop" the left-click option in this client? None = not
+# seen yet, True = it does, False = it doesn't (the right-click menu is used). Checked from the
+# game's own menu before every click, so a client without it never gets a wrong click.
+SHIFT_DROP_MENU = None
+
+
+def _shift_drop_known(ctx, gs, x, y):
+    """Shift is held: hover the slot and left-click it if the game says that drops it."""
+    global SHIFT_DROP_MENU
+    from lumberjack.core.gamestate import top_entry
+    ctx.inp.move(x, y, steps=2)
+    top = None
+    for _ in range(3):
+        ctx.sleep(random.uniform(0.04, 0.07))
+        top = top_entry(gs.menu())
+        if top and top["verb"] == "Drop":
+            ctx.inp.click()
+            ctx.sleep(random.uniform(0.05, 0.09))
+            if SHIFT_DROP_MENU is None:
+                SHIFT_DROP_MENU = True
+                log.info("Shift-click drops items - using it from now on")
+            return True
+    if SHIFT_DROP_MENU is None and top is not None:
+        SHIFT_DROP_MENU = False
+        log.info("Shift-click doesn't drop in this client - using the right-click menu")
+    return False
+
+
+def _menu_drop_known(ctx, gs, x, y):
     from lumberjack.core.gamestate import menu_row_point
+    ctx.inp.right_click(x, y)
+    ctx.sleep(random.uniform(0.15, 0.25))
+    m = gs.menu()
+    e = next((e for e in m.get("entries") or [] if e["verb"] == "Drop"), None)
+    if m.get("open") and e:
+        rx, ry = menu_row_point(m, e["row"])
+        ctx.inp.click(rx + random.randint(-15, 15), ry + random.randint(-1, 1))
+        ctx.sleep(random.uniform(0.08, 0.15))
+        return True
+    ctx.inp.move(x - 120, y)
+    return False
+
+
+def drop_known(ctx, gs, slots):
+    """Drop exactly these slots (game data) - for items the caller knows by name (cut gems,
+    spawned bones...), which the generic product check would keep. Shift-click when the game
+    shows "Drop" as the left-click option with Shift held, else the right-click menu."""
     open_tab(ctx, "inventory")
     cancel_selection(ctx)
     dropped = 0
-    for i in sorted(slots, key=lambda i: (i % R.INV_COLS, i // R.INV_COLS)):
-        x, y = R.INV_SLOTS[i].center
-        ctx.inp.right_click(x + random.randint(-4, 4), y + random.randint(-4, 4))
-        ctx.sleep(random.uniform(0.15, 0.25))
-        m = gs.menu()
-        e = next((e for e in m.get("entries") or [] if e["verb"] == "Drop"), None)
-        if m.get("open") and e:
-            rx, ry = menu_row_point(m, e["row"])
-            ctx.inp.click(rx + random.randint(-15, 15), ry + random.randint(-1, 1))
-            ctx.sleep(random.uniform(0.08, 0.15))
-            dropped += 1
-        else:
-            ctx.inp.move(x - 120, y)
+    shift = False
+    try:
+        for i in sorted(slots, key=lambda i: (i % R.INV_COLS, i // R.INV_COLS)):
+            x, y = R.INV_SLOTS[i].center
+            x, y = x + random.randint(-4, 4), y + random.randint(-4, 4)
+            if SHIFT_DROP_MENU is not False:
+                if not shift:
+                    ctx.inp.key_down(VK_SHIFT)
+                    shift = True
+                if _shift_drop_known(ctx, gs, x, y):
+                    dropped += 1
+                    continue
+            if shift:
+                ctx.inp.key_up(VK_SHIFT)
+                shift = False
+            if _menu_drop_known(ctx, gs, x, y):
+                dropped += 1
+    finally:
+        if shift:
+            ctx.inp.key_up(VK_SHIFT)
     return dropped
 
 
