@@ -140,3 +140,12 @@ def test_a_bait_load_always_leaves_one_slot_empty(monkeypatch):
     assert f.load_full(occ(inv))                          # drop now - no 0-bait spawn loop
     inv[26] = {"id": -1, "key": None}
     assert not f.load_full(occ(inv)) and f.load_size() - sum(occ(inv)) == 1
+
+
+def test_bait_carried_at_start_is_not_kept(monkeypatch):
+    # leftover karambwanji in the backpack at Start got kept: every catch emptied a kept slot
+    inv = slots("karambwan_vessel", "coins", "raw_karambwanji", "raw_karambwanji")
+    f = karambwan_fisher(monkeypatch, inv)
+    f.keep_slots = {0, 1, 2, 3}
+    f.slot_bait()
+    assert f.keep_slots == {0, 1}

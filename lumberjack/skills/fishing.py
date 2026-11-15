@@ -436,6 +436,10 @@ class Fisher(BotBase):
         bait = [] if inv is None else [i for i, s in enumerate(inv) if s["key"] == key]
         if bait:
             self.bait_spawns = 0                   # it arrived: spawning works
+        if set(bait) & set(self.keep_slots):
+            # carried at Start ("keep what I'm carrying"): bait is used up, not kept - a kept slot
+            # emptying by a catch would read as "stopped fishing" and re-click every catch
+            self.keep_slots = set(self.keep_slots) - set(bait)
         return key, bait
 
     def catch_count(self, occ):
@@ -669,7 +673,10 @@ class Fisher(BotBase):
                 if top and top["verb"] == verb and top["subject"] == SPOT_NAME:
                     self.last_spot = sp.get("index")
                     self.inp.click()
-                    self.log.info("Clicked %s at a spot %d tile(s) away", verb, sp["dist"])
+                    why = getattr(self, "fish_ended", None)
+                    self.fish_ended = None
+                    self.log.info("Clicked %s at a spot %d tile(s) away%s", verb, sp["dist"],
+                                  f" ({why})" if why else "")
                     return True
                 if find_entry(menu, verb, SPOT_NAME):
                     # our option is in the menu but not on top (bait at a net spot, or players
@@ -884,8 +891,10 @@ class Fisher(BotBase):
                 last, last_catch, started = n, now, True
             prev = occ
             if emptied_kept(occ, self.keep_slots):
+                self.fish_ended = "a kept slot emptied"
                 break                           # out of bait: the main loop stops us
             if self.load_full(occ):
+                self.fish_ended = "backpack full"
                 break
             busy = self.busy_from_game()
             if busy is None:                    # no game data: judge by the picture moving
@@ -896,9 +905,11 @@ class Fisher(BotBase):
             if busy:
                 started = True
             elif settled and (started or now - start > NEVER_STARTED_S):
+                self.fish_ended = "stopped fishing" if started else "never started"
                 break                           # was fishing and now idle, or never started
             if now - last_catch > NO_CATCH_S:
                 self.log.info("No catch for %d s - looking for the spot again", NO_CATCH_S)
+                self.fish_ended = None
                 break
             if actions.dismiss_dialog(self.ctx):   # level-up stops fishing
                 self.level_up = True
