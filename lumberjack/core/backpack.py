@@ -17,9 +17,9 @@ from lumberjack.core import gamestate
 # never dropped, and found by name for the bots that need them
 TOOLS = {"tinderbox", "knife", "small_fishing_net", "big_fishing_net", "fishing_rod", "fly_fishing_rod",
          "harpoon", "lobster_pot", "fishing_bait", "feather", "hammer", "chisel", "bow_string",
-         "coins", "needle", "thread"}
+         "coins", "needle", "thread", "karambwan_vessel", "raw_karambwanji"}
 COOKED = {"shrimps", "anchovies", "sardine", "herring", "trout", "pike", "salmon", "tuna", "lobster",
-          "swordfish", "shark", "cod", "mackerel", "bass", "monkfish", "cooked_chicken", "cooked_meat",
+          "swordfish", "shark", "cod", "mackerel", "bass", "monkfish", "cooked_karambwan", "cooked_chicken", "cooked_meat",
           "bread", "cake"}
 LOGS = {"logs", "oak_logs", "willow_logs", "maple_logs", "yew_logs", "magic_logs", "teak_logs",
         "mahogany_logs", "achey_tree_logs"}
@@ -42,7 +42,7 @@ TASK_TOOLS = {
     "woodcutting": {"tinderbox", "knife"},
     "firemaking": {"tinderbox"},
     "fishing": {"small_fishing_net", "big_fishing_net", "fishing_rod", "fly_fishing_rod", "harpoon",
-                "lobster_pot", "fishing_bait", "feather", "tinderbox"},
+                "lobster_pot", "fishing_bait", "feather", "tinderbox", "karambwan_vessel", "raw_karambwanji"},
     "mining": set(),
     "cooking": {"tinderbox"},
     "fletching": {"knife"},

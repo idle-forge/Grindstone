@@ -1,5 +1,14 @@
 # Changelog
 
+## 🎣 Monkfish and karambwan
+
+- **Karambwan fishing** (Fishing 65, Karamja): the fastest Fishing XP - about 3.5x sharks at
+  high levels - and it cooks at Cooking 30 for 190 XP each. The vessel and karambwanji bait are
+  spawned
+- **Monkfish** (Fishing 62, Piscatoris): about twice the XP of sharks
+- Both are on the fishing route (the "by level" switch and Autopilot use them), and you can pick
+  them on the Settings tab: Start teleports to their ★ place
+
 ## <img src="lumberjack/assets/phone.svg" height="26" alt=""> Grindstone on your phone
 
 The big one: **check on your bot from anywhere**. Set it up in 5 minutes with

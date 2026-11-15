@@ -39,12 +39,16 @@ SERVER_TICK = 0.6
 TARGET = "fishing_spot"          # mouseover template: yellow "Fishing spot"
 TARGET_COLOR = "yellow"          # NPC names are yellow
 # method -> Fishing level needed (the cheapest fish of that method)
-METHOD_LEVELS = {"net": 1, "bait": 5, "lure": 20, "harpoon": 35, "cage": 40}
+METHOD_LEVELS = {"net": 1, "bait": 5, "lure": 20, "harpoon": 35, "cage": 40, "monkfish": 62, "karambwan": 65}
+# methods only one kind of spot offers - told apart by the spot's NPC id (game data only):
+# monkfish = Piscatoris net/harpoon spots (Catherby's net/harpoon spots big-net mackerel and bass),
+# karambwan = the Karamja vessel spot. Ids from the server's FishingSpot table.
+METHOD_SPOT_IDS = {"monkfish": (3848, 3849), "karambwan": (1177,)}
 # every action word a fishing spot can show on hover (its left-click option)
 HOVER_ACTIONS = ("net", "bait", "lure", "cage", "harpoon")
 # template names, per method: hover word (mouseover/) and menu row word (menu/)
-HOVER_TEMPLATE = {m: m for m in METHOD_LEVELS}
-MENU_TEMPLATE = {m: m for m in METHOD_LEVELS}
+HOVER_TEMPLATE = {m: m for m in METHOD_LEVELS if m not in METHOD_SPOT_IDS}
+MENU_TEMPLATE = {m: m for m in METHOD_LEVELS if m not in METHOD_SPOT_IDS}
 # left-click (hover) word of the spots that offer each method; a method that isn't its
 # spots' left-click option is picked from the right-click menu
 SPOT_LEFT_CLICK = {"net": ("net",), "lure": ("lure",), "cage": ("cage",),
@@ -53,16 +57,19 @@ SPOT_LEFT_CLICK = {"net": ("net",), "lure": ("lure",), "cage": ("cage",),
 # taken to be net/bait (Lumbridge swamp, Draynor); sea net/harpoon spots aren't supported.
 OFFERS = {"net": ("net", "bait"), "lure": ("lure", "bait"), "cage": ("cage", "harpoon")}
 # the menu verb of each method, as the game names it ("Net Fishing spot")
-METHOD_VERB = {"net": "Net", "bait": "Bait", "lure": "Lure", "cage": "Cage", "harpoon": "Harpoon"}
+METHOD_VERB = {"net": "Net", "bait": "Bait", "lure": "Lure", "cage": "Cage", "harpoon": "Harpoon",
+               "monkfish": "Net", "karambwan": "Fish"}
 SPOT_NAME = "Fishing spot"
 # methods that use up a stack (fishing bait / feathers)
-USES_BAIT = {"bait": "fishing bait", "lure": "feathers"}
+USES_BAIT = {"bait": "fishing bait", "lure": "feathers", "karambwan": "raw karambwanji"}
 TOOLS = {"net": "small fishing net", "bait": "fishing rod + fishing bait",
-         "lure": "fly fishing rod + feathers", "cage": "lobster pot", "harpoon": "harpoon"}
+         "lure": "fly fishing rod + feathers", "cage": "lobster pot", "harpoon": "harpoon",
+         "monkfish": "small fishing net", "karambwan": "karambwan vessel + raw karambwanji"}
 # the same as items.CATALOG keys - what 'Spawn missing tools' spawns per method
 TOOL_ITEMS = {"net": ["small_fishing_net"], "bait": ["fishing_rod", "fishing_bait"],
-              "lure": ["fly_fishing_rod", "feather"], "cage": ["lobster_pot"], "harpoon": ["harpoon"]}
-STACKS = {"fishing_bait": 500, "feather": 500}   # stackables spawn as one stack of this many
+              "lure": ["fly_fishing_rod", "feather"], "cage": ["lobster_pot"], "harpoon": ["harpoon"],
+              "monkfish": ["small_fishing_net"], "karambwan": ["karambwan_vessel", "raw_karambwanji"]}
+STACKS = {"fishing_bait": 500, "feather": 500, "raw_karambwanji": 1000}   # stackables spawn as one stack of this many
 
 CANDIDATES_TRIED = 6
 WALK_TO_SPOT_TILES = 40           # an off-screen spot this close is walked to (game data)
@@ -104,6 +111,7 @@ def harpoon_spots(offering, method, level):
     prefer them. Other methods: unchanged."""
     if method != "harpoon":
         return offering
+    offering = [sp for sp in offering if sp.get("id") not in METHOD_SPOT_IDS["monkfish"]]
     sword = [sp for sp in offering if "Cage" in sp["ops"]]
     shark = [sp for sp in offering if "Net" in sp["ops"]]
     if level is not None and level >= SHARK_LEVEL:
@@ -117,6 +125,10 @@ def usable_method(method, spot_action, map_methods, missing):
     `missing` = missing_now(method). Returns (ok, why-not)."""
     if missing:
         return False, "not calibrated (" + ", ".join(missing) + ")"
+    if method in METHOD_SPOT_IDS:                 # its own spots elsewhere: a route/★ place takes us there
+        return (True, None) if method in map_methods else \
+            (False, "its spots are elsewhere - pick it on the Settings tab (or tick the level switch) so "
+                    "Start goes to its ★ place")
     if spot_action is None or method in OFFERS.get(spot_action, ()):
         return True, None
     if method in map_methods:
@@ -169,6 +181,8 @@ def missing_templates(method, available=mouseover.available, menu_available=None
 
     Needed: the yellow target, plus either our own hover word (we're the left-click
     option) or some other hover word + our menu word (right-click option)."""
+    if method in METHOD_SPOT_IDS:
+        return ["the game's own data (restart the game with the Grindstone icon)"]
     if menu_available is None:
         menu_available = _menu_available
     missing = []
@@ -549,8 +563,9 @@ class Fisher(BotBase):
         spots = self.gs.npcs(SPOT_NAME)
         for sp in spots:
             spot_memory.remember(sp)
-        offering = harpoon_spots([sp for sp in spots if verb in sp["ops"]], self.method,
-                                 (getattr(self, "levels", None) or {}).get("fishing"))
+        ids = METHOD_SPOT_IDS.get(self.method)
+        offering = harpoon_spots([sp for sp in spots if verb in sp["ops"] and (ids is None or sp.get("id") in ids)],
+                                 self.method, (getattr(self, "levels", None) or {}).get("fishing"))
         if not offering and not walked and self.walk_to_remembered_spot(verb):
             return self.find_and_use_spot_gs(walked=True)
         if not spots:

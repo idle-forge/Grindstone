@@ -610,8 +610,11 @@ def fishing_checks(s, errors, fixes, warnings):
         warnings.append(f"Carry only your tools ({fishing.TOOLS[s.fish_method]}"
                         + (", tinderbox, axe" if s.cook else "") + ") - at most 4 items.")
     if s.auto_fish:
-        fixes.append("Switches method as your Fishing level goes up: bait at 5 (same spot), lure at 20, "
-                     "harpoon 35 / cage 40 - those need their spot calibrated and saved as a Fishing spot.")
+        fixes.append("Picks the best method for your Fishing level and goes to its ★ place: net, lure 20, "
+                     "cage 40, harpoon 50, monkfish 62 (Piscatoris), karambwan 65 (Karamja - the fastest XP).")
+    elif s.fish_method in fishing.METHOD_SPOT_IDS:
+        place = {"monkfish": "★ Piscatoris fishing", "karambwan": "★ Karamja karambwan"}[s.fish_method]
+        fixes.append(f"Start teleports to {place}, where its fishing spots are.")
     if not s.cook:
         if s.cooked_action == "drop":
             fixes.append("Raw fish are dropped when the backpack is full.")

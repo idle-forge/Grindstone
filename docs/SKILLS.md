@@ -31,7 +31,10 @@ level goes up*). With *Cook the catch* it chops a log from a nearby tree, lights
 cooks the catch; burnt fish are dropped, cooked fish dropped or banked. It remembers where it
 has seen fishing spots and walks back to them when none are in range.
 Route: net at Draynor (1) → lure at the Lumbridge river (20) → cage at Catherby (40) → harpoon
-at Catherby (50: swordfish, sharks from 76).
+at Catherby (50: swordfish) → **monkfish** at Piscatoris (62) → **karambwan** on Karamja (65).
+Karambwan is by far the fastest Fishing XP from 65 on - about 3.5x sharks - and cooks at Cooking
+30 for 190 XP each; the vessel and karambwanji bait are spawned. Sharks (harpoon, 76) are still
+there to pick by hand.
 
 ### ⛏️ Mining
 Mines the chosen ores (or the best for your level). It learns which rock holds which ore as it

@@ -75,6 +75,8 @@ CATALOG = [
     ("Fishing", "feather", "Feather", 314, "x500 recommended"),
     ("Fishing", "lobster_pot", "Lobster pot", 301, "Cage fishing"),
     ("Fishing", "harpoon", "Harpoon", 311, "Harpoon fishing"),
+    ("Fishing", "karambwan_vessel", "Karambwan vessel", 3157, "Karambwan fishing"),
+    ("Fishing", "raw_karambwanji", "Raw karambwanji", 3150, "Karambwan bait, x1000 recommended"),
     ("Logs", "logs", "Logs", 1511, "Firemaking 1"),
     ("Logs", "oak_logs", "Oak logs", 1521, "Firemaking 15"),
     ("Logs", "willow_logs", "Willow logs", 1519, "Firemaking 30"),

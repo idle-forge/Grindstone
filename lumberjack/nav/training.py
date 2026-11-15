@@ -14,6 +14,10 @@ STARTER_PLACES = {
     "★ Draynor fishing": {"tile": [3086, 3228], "plane": 0, "note": "net / bait"},
     "★ Lumbridge river": {"tile": [3239, 3244], "plane": 0, "note": "lure / bait"},
     "★ Catherby fishing": {"tile": [2850, 3432], "plane": 0, "note": "cage / harpoon, bank close by"},
+    # spots from the server's spawn data: monkfish along the colony's north shore (y 3702),
+    # the karambwan spot at (2912, 3119) by fairy ring DKP - "Check ★ places" moves these if off
+    "★ Piscatoris fishing": {"tile": [2344, 3699], "plane": 0, "note": "monkfish (net)"},
+    "★ Karamja karambwan": {"tile": [2905, 3115], "plane": 0, "note": "karambwan (vessel)"},
     "★ Varrock east mine": {"tile": [3286, 3366], "plane": 0, "note": "copper, tin, iron"},
     "★ Barbarian mine": {"tile": [3081, 3421], "plane": 0, "note": "coal, tin"},
     "★ Lumbridge chickens": {"tile": [3233, 3295], "plane": 0},
@@ -54,7 +58,9 @@ ROUTES = {
         (1, "★ Draynor fishing", {"fish_method": "net", "auto_fish": False}),
         (20, "★ Lumbridge river", {"fish_method": "lure", "auto_fish": False}),
         (40, "★ Catherby fishing", {"fish_method": "cage", "auto_fish": False}),
-        (50, "★ Catherby fishing", {"fish_method": "harpoon", "auto_fish": False}),   # swordfish; sharks at 76
+        (50, "★ Catherby fishing", {"fish_method": "harpoon", "auto_fish": False}),   # swordfish
+        (62, "★ Piscatoris fishing", {"fish_method": "monkfish", "auto_fish": False}),  # ~2x the XP of sharks
+        (65, "★ Karamja karambwan", {"fish_method": "karambwan", "auto_fish": False}),  # ~3.5x sharks
     ],
     "mining": [
         (1, "★ Varrock east mine", {"ores": ["copper", "tin"], "auto_ores": False}),

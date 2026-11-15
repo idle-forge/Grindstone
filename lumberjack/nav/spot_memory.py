@@ -17,7 +17,8 @@ SAME_TILES = 3                 # a spot this close to a known one is the same sp
 KEEP = 60                      # tiles remembered per method
 # built-in fallbacks: which methods the ★ fishing places offer
 PLACE_VERBS = {"★ Draynor fishing": ("Net", "Bait"), "★ Lumbridge river": ("Lure", "Bait"),
-               "★ Catherby fishing": ("Cage", "Harpoon", "Net", "Bait")}
+               "★ Catherby fishing": ("Cage", "Harpoon", "Net", "Bait"),
+               "★ Karamja karambwan": ("Fish",)}
 
 _lock = threading.Lock()
 _cache = None
