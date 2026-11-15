@@ -106,12 +106,13 @@ class FishCooker(Fisher):
         inv = backpack.slots()
         if inv is None:
             return
-        drop = [i for i, s in enumerate(inv) if s["key"] == "tinderbox"
-                or ((s["key"].endswith("_axe") or s["key"] == "axe") and not s["key"].endswith("pickaxe"))]
+        keys = [s.get("key") or "" for s in inv]          # an empty slot has no name
+        drop = [i for i, k in enumerate(keys) if k == "tinderbox"
+                or ((k.endswith("_axe") or k == "axe") and not k.endswith("pickaxe"))]
         if not drop:
             return
         self.log.info("Not cooking - dropping %s (spawned again if you turn cooking on)",
-                      " and ".join(sorted({inv[i]["key"].replace("_", " ") for i in drop})))
+                      " and ".join(sorted({keys[i].replace("_", " ") for i in drop})))
         actions.drop_known(self.ctx, self.gs, drop)
         self.keep_slots = set(self.keep_slots) - set(drop)
 

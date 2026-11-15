@@ -73,7 +73,8 @@ def test_new_methods_need_the_game_data_and_their_own_place():
 
 
 def slots(*keys):
-    return [{"id": 1 if k else -1, "key": k or ""} for k in keys] + [{"id": -1, "key": ""}] * (28 - len(keys))
+    # as the game sends them: an empty slot's key is None
+    return [{"id": 1 if k else -1, "key": k or None} for k in keys] + [{"id": -1, "key": None}] * (28 - len(keys))
 
 
 def karambwan_fisher(monkeypatch, inv):
@@ -117,12 +118,12 @@ def test_not_cooking_drops_the_axe_and_tinderbox_but_keeps_coins(monkeypatch):
     from lumberjack import actions
     from lumberjack.core import backpack
     from lumberjack.skills import fish_cook
-    inv = slots("coins", "rune_axe", "tinderbox", "karambwan_vessel")
+    inv = slots("coins", "rune_axe", None, "tinderbox", "karambwan_vessel")
     monkeypatch.setattr(backpack, "slots", lambda: inv)
     dropped = []
     monkeypatch.setattr(actions, "drop_known", lambda ctx, gs, s: dropped.extend(s))
     b = fish_cook.FishCooker.__new__(fish_cook.FishCooker)
-    b.ctx, b.gs, b.spawn_tools, b.keep_slots = None, object(), True, {0, 1, 2, 3}
+    b.ctx, b.gs, b.spawn_tools, b.keep_slots = None, object(), True, {0, 1, 3, 4}
     b.log = __import__("logging").getLogger("t")
     b.drop_fire_tools()
-    assert sorted(dropped) == [1, 2] and b.keep_slots == {0, 3}
+    assert sorted(dropped) == [1, 3] and b.keep_slots == {0, 4}
