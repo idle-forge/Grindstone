@@ -68,8 +68,11 @@ TOOLS = {"net": "small fishing net", "bait": "fishing rod + fishing bait",
 # the same as items.CATALOG keys - what 'Spawn missing tools' spawns per method
 TOOL_ITEMS = {"net": ["small_fishing_net"], "bait": ["fishing_rod", "fishing_bait"],
               "lure": ["fly_fishing_rod", "feather"], "cage": ["lobster_pot"], "harpoon": ["harpoon"],
-              "monkfish": ["small_fishing_net"], "karambwan": ["karambwan_vessel", "raw_karambwanji"]}
-STACKS = {"fishing_bait": 500, "feather": 500, "raw_karambwanji": 1000}   # stackables spawn as one stack of this many
+              "monkfish": ["small_fishing_net"], "karambwan": ["karambwan_vessel"]}
+STACKS = {"fishing_bait": 500, "feather": 500}
+# bait that doesn't stack on this server: one per slot, each catch turns one into a fish. A load
+# = the free slots filled with bait; when it's all used up the backpack is full of fish.
+SLOT_BAIT = {"karambwan": "raw_karambwanji"}   # stackables spawn as one stack of this many
 
 CANDIDATES_TRIED = 6
 WALK_TO_SPOT_TILES = 40           # an off-screen spot this close is walked to (game data)
@@ -300,7 +303,11 @@ class Fisher(BotBase):
                 frame = self.grab()
                 occ = inventory.occupied(frame)
                 self.check_bait(occ)
-                if sum(occ) >= self.drop_at:
+                key, bait = self.slot_bait()
+                if key and not bait and sum(occ) < self.drop_at:
+                    self.spawn_slot_bait(key, self.drop_at - sum(occ))
+                    continue
+                if self.load_full(occ):
                     self.handle_full_inventory()
                     continue
                 self.state = "finding fishing spot"
@@ -412,6 +419,42 @@ class Fisher(BotBase):
                 self.log.info("Learned a new kind of raw fish (slot %d)", i + 1)
         self.inp.move(260, 300)
 
+    # ---- bait that doesn't stack (karambwanji) ------------------------------------------
+    def slot_bait(self):
+        """(bait key, slots holding it) when our method's bait sits one per slot, else (None, [])."""
+        key = SLOT_BAIT.get(self.method)
+        if not key:
+            return None, []
+        from lumberjack.core import backpack
+        inv = backpack.slots()
+        bait = [] if inv is None else [i for i, s in enumerate(inv) if s["key"] == key]
+        if bait:
+            self.bait_spawns = 0                   # it arrived: spawning works
+        return key, bait
+
+    def catch_count(self, occ):
+        """Fish in the backpack: filled slots that aren't kept tools - or one-per-slot bait (a
+        catch turns a bait slot into a fish, so the slots alone don't change)."""
+        return catch_count(occ, set(self.keep_slots) | set(self.slot_bait()[1]))
+
+    def load_full(self, occ):
+        """Time to drop/bank/cook: the backpack is at drop_at - and with one-per-slot bait, the
+        bait is used up (until then the bait slots fill up the backpack by design)."""
+        if sum(occ) < self.drop_at:
+            return False
+        key, bait = self.slot_bait()
+        return not (key and bait)
+
+    def spawn_slot_bait(self, key, n):
+        from lumberjack import items
+        self.state = f"spawning {key.replace('_', ' ')}"
+        self.bait_spawns = getattr(self, "bait_spawns", 0) + 1
+        if self.bait_spawns > 3:
+            raise StopBot(f"spawning {key.replace('_', ' ')} didn't put any in the backpack")
+        self.log.info("Spawning %d %s for this load (one per free slot - it doesn't stack)", n, key.replace("_", " "))
+        items.spawn(self.ctx, key, n)
+        self.sleep(SERVER_TICK)
+
     # ---- tools ------------------------------------------------------------------------
     def find_tool(self, tool):
         """Backpack slot holding `tool` (by name from the game, else its icon or hover name), or None."""
@@ -458,8 +501,9 @@ class Fisher(BotBase):
         inv = backpack.slots()
         if inv is None:
             return
-        mine = set(TOOL_ITEMS[self.method])
-        other = {t for tools in TOOL_ITEMS.values() for t in tools} - mine
+        mine = set(TOOL_ITEMS[self.method]) | {SLOT_BAIT[self.method]} if self.method in SLOT_BAIT \
+            else set(TOOL_ITEMS[self.method])
+        other = ({t for tools in TOOL_ITEMS.values() for t in tools} | set(SLOT_BAIT.values())) - mine
         drop = [i for i, s in enumerate(inv) if s["key"] in other]
         if not drop:
             return
@@ -807,7 +851,7 @@ class Fisher(BotBase):
     def fish(self):
         """Wait while we walk over and fish, until idle (spot moved/gone), full, or stalled."""
         occ = prev = inventory.occupied(self.grab())
-        before = last = catch_count(occ, self.keep_slots)
+        before = last = self.catch_count(occ)
         self.activity.reset()
         start = last_catch = time.monotonic()
         started = False
@@ -819,7 +863,7 @@ class Fisher(BotBase):
             frame = self.grab()
             self.activity.update(frame)
             occ = inventory.occupied(frame)
-            n = catch_count(occ, self.keep_slots)
+            n = self.catch_count(occ)
             if n > last:
                 self.logs_cut += n - last
                 self.log.info("+%d fish - %s", n - last, self.stats())
@@ -830,7 +874,7 @@ class Fisher(BotBase):
             prev = occ
             if emptied_kept(occ, self.keep_slots):
                 break                           # out of bait: the main loop stops us
-            if sum(occ) >= self.drop_at:
+            if self.load_full(occ):
                 break
             busy = self.busy_from_game()
             if busy is None:                    # no game data: judge by the picture moving
@@ -851,7 +895,7 @@ class Fisher(BotBase):
                 break
             self.sleep(0.2)
         self.sleep(SERVER_TICK)
-        n = catch_count(inventory.occupied(self.grab()), self.keep_slots)
+        n = self.catch_count(inventory.occupied(self.grab()))
         if n > last:
             self.logs_cut += n - last
             last = n

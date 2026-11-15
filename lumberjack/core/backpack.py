@@ -35,7 +35,7 @@ LOOT = {"bones", "big_bones", "burnt_bones", "wolf_bones", "bat_bones", "cowhide
 # only one task uses (hunter traps): dropped between tasks when there's no bank, so a fresh
 # account has room for food and supplies
 STARTER = {"pot", "bronze_dagger", "bronze_sword", "wooden_shield", "shortbow", "bronze_arrow",
-           "bronze_arrows", "bucket", "empty_pot", "bird_snare", "box_trap"}
+           "bronze_arrows", "bucket", "empty_pot", "bird_snare", "box_trap", "raw_karambwanji"}
 
 # the tools each task uses (axe/pickaxe matched by name); everything else can be banked between tasks
 TASK_TOOLS = {

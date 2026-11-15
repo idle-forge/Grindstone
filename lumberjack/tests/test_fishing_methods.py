@@ -22,7 +22,8 @@ def test_high_levels_go_to_karambwan_then_monkfish_on_the_route():
 
 
 def test_gear_bait_and_catches_are_known():
-    assert fishing.TOOL_ITEMS["karambwan"] == ["karambwan_vessel", "raw_karambwanji"]
+    assert fishing.TOOL_ITEMS["karambwan"] == ["karambwan_vessel"]
+    assert fishing.SLOT_BAIT["karambwan"] == "raw_karambwanji"
     assert fishing.TOOL_ITEMS["monkfish"] == ["small_fishing_net"]
     assert fishing.METHOD_VERB["karambwan"] == "Fish" and fishing.METHOD_VERB["monkfish"] == "Net"
     # the bait is a tool to keep, not a raw fish to cook or drop
@@ -69,3 +70,59 @@ def test_new_methods_need_the_game_data_and_their_own_place():
     assert fishing.usable_method("karambwan", "cage", {"karambwan"}, [])[0]
     assert fishing.pick_method(["harpoon", "karambwan", "monkfish"], 96) == "karambwan"
     assert fishing.pick_method(["harpoon", "karambwan", "monkfish"], 63) == "monkfish"
+
+
+def slots(*keys):
+    return [{"id": 1 if k else -1, "key": k or ""} for k in keys] + [{"id": -1, "key": ""}] * (28 - len(keys))
+
+
+def karambwan_fisher(monkeypatch, inv):
+    from lumberjack.core import backpack
+    monkeypatch.setattr(backpack, "slots", lambda: inv)
+    f = fishing.Fisher.__new__(fishing.Fisher)
+    f.method, f.keep_slots, f.drop_at = "karambwan", {0, 1}, 26
+    return f
+
+
+def occ(inv):
+    return [s["id"] >= 0 for s in inv]
+
+
+def test_one_per_slot_bait_fills_a_load_and_isnt_counted_as_fish(monkeypatch):
+    # a load: vessel + coins kept, 24 karambwanji - a "full" backpack that is really just bait
+    inv = slots("karambwan_vessel", "coins", *["raw_karambwanji"] * 24)
+    f = karambwan_fisher(monkeypatch, inv)
+    assert not f.load_full(occ(inv))                      # bait left: keep fishing
+    assert f.catch_count(occ(inv)) == 0
+    inv[2] = {"id": 3142, "key": "raw_karambwan"}        # a catch turns one bait into a fish
+    assert f.catch_count(occ(inv)) == 1
+    for i in range(3, 26):
+        inv[i] = {"id": 3142, "key": "raw_karambwan"}     # all bait used up
+    assert f.catch_count(occ(inv)) == 24 and f.load_full(occ(inv))
+
+
+def test_the_main_loop_spawns_a_load_of_bait_not_a_stack(monkeypatch):
+    inv = slots("karambwan_vessel", "coins")
+    f = karambwan_fisher(monkeypatch, inv)
+    spawned = []
+    f.spawn_slot_bait = lambda key, n: spawned.append((key, n))
+    key, bait = f.slot_bait()
+    o = occ(inv)
+    assert key == "raw_karambwanji" and not bait and sum(o) < f.drop_at
+    f.spawn_slot_bait(key, f.drop_at - sum(o))
+    assert spawned == [("raw_karambwanji", 24)]           # the free slots, leaving room as drop_at says
+
+
+def test_not_cooking_drops_the_axe_and_tinderbox_but_keeps_coins(monkeypatch):
+    from lumberjack import actions
+    from lumberjack.core import backpack
+    from lumberjack.skills import fish_cook
+    inv = slots("coins", "rune_axe", "tinderbox", "karambwan_vessel")
+    monkeypatch.setattr(backpack, "slots", lambda: inv)
+    dropped = []
+    monkeypatch.setattr(actions, "drop_known", lambda ctx, gs, s: dropped.extend(s))
+    b = fish_cook.FishCooker.__new__(fish_cook.FishCooker)
+    b.ctx, b.gs, b.spawn_tools, b.keep_slots = None, object(), True, {0, 1, 2, 3}
+    b.log = __import__("logging").getLogger("t")
+    b.drop_fire_tools()
+    assert sorted(dropped) == [1, 2] and b.keep_slots == {0, 3}

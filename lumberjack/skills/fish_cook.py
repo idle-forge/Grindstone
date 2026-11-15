@@ -86,6 +86,7 @@ class FishCooker(Fisher):
     def before_loop(self):
         self.track_xp()
         if not self.cook_enabled:
+            self.drop_fire_tools()
             return
         from lumberjack.core import backpack
         missing = cooking.missing_templates(self.cooked_action, names_known=backpack.source() is not None)
@@ -95,6 +96,24 @@ class FishCooker(Fisher):
             raise StopBot("no tree to cut fire logs from - learn the tree and its logs "
                           f"({', '.join(self.fire_trees)}) or tick another tree")
         self.ensure_tinderbox()
+
+    def drop_fire_tools(self):
+        """Not cooking: the axe and tinderbox (for fire logs) only take room - drop them. Only
+        with 'Spawn missing tools', so turning cooking back on gets them again."""
+        if not (self.gs and self.spawn_tools):
+            return
+        from lumberjack.core import backpack
+        inv = backpack.slots()
+        if inv is None:
+            return
+        drop = [i for i, s in enumerate(inv) if s["key"] == "tinderbox"
+                or ((s["key"].endswith("_axe") or s["key"] == "axe") and not s["key"].endswith("pickaxe"))]
+        if not drop:
+            return
+        self.log.info("Not cooking - dropping %s (spawned again if you turn cooking on)",
+                      " and ".join(sorted({inv[i]["key"].replace("_", " ") for i in drop})))
+        actions.drop_known(self.ctx, self.gs, drop)
+        self.keep_slots = set(self.keep_slots) - set(drop)
 
     def ensure_tinderbox(self):
         frame = self.grab()

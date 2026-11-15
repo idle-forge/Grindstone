@@ -6,6 +6,9 @@
   high levels - and it cooks at Cooking 30 for 190 XP each. The vessel and karambwanji bait are
   spawned
 - **Monkfish** (Fishing 62, Piscatoris): about twice the XP of sharks
+- Karambwanji bait doesn't stack on this server: each load fills the free slots with bait, every
+  catch turns one into a karambwan, and the full backpack is dropped (or cooked) when it runs out
+- Not cooking the catch: the axe and tinderbox (only for fire logs) are dropped to free room
 - Both are on the fishing route (the "by level" switch and Autopilot use them), and you can pick
   them on the Settings tab: Start teleports to their ★ place
 
