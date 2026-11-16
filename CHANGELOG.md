@@ -1,5 +1,17 @@
 # Changelog
 
+## ✨ A livelier panel
+
+- Buttons lift and glow softly on hover and press in when clicked
+- **Start shows a spinner** and what it's doing ("Starting...", "Teleporting...") until the bot is
+  running, then a green pop; if it can't start, the button shakes and says why
+- A pulsing light on the "running" badge, counts that flash green as they go up, XP bars that
+  fill smoothly, a sliding underline on the tabs and a fade-in when you switch
+- A soft shimmer instead of a black box while the bot view connects
+- Small pop-up messages for Started / Paused / Stopped / Saved and errors
+- The phone page gets the same (press effects, spinners, pop-ups, shimmer)
+- All of it switches off if your PC or phone is set to reduce motion
+
 ## ⚡ Faster dropping
 
 - Full backpacks are dropped with **shift-click** when the game makes "Drop" the left-click

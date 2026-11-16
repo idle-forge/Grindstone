@@ -177,6 +177,57 @@
   details.need[open] > summary::before { content: "▾"; }
   details.need > summary small { font-weight: 400; opacity: .8; }
   details.need:not([open]) > summary small::after { content: " - click to show"; }
+  /* ---- motion (subtle): hover lift, press, loading, pops, toasts - off with "reduce motion" ---- */
+  button { transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease, filter .14s ease, background-color .14s ease; }
+  button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(226,181,74,.16); }
+  button:active:not(:disabled) { transform: translateY(0) scale(.97); box-shadow: none; transition-duration: 60ms; }
+  button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  button.go:hover:not(:disabled) { border-color: var(--green); filter: brightness(1.12); box-shadow: 0 4px 16px rgba(111,207,111,.18); }
+  button.stop:hover:not(:disabled) { border-color: var(--red); filter: brightness(1.12); box-shadow: 0 4px 16px rgba(224,106,90,.18); }
+  .tabs button:hover:not(:disabled), .tabs button:active:not(:disabled) { transform: none; box-shadow: none; }
+  .tabs button:hover { color: var(--text); }
+  button.busy { cursor: progress; opacity: 1 !important; }
+  .spin { display: inline-block; width: 14px; height: 14px; margin-right: 7px; vertical-align: -2px; flex: none;
+          border: 2px solid rgba(255,255,255,.25); border-top-color: currentColor; border-radius: 50%;
+          animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .shake { animation: shake .4s; }
+  @keyframes shake { 20%,60% { transform: translateX(-4px); } 40%,80% { transform: translateX(4px); } }
+  .okpop { animation: okpop .45s; }
+  @keyframes okpop { 40% { transform: scale(1.05); box-shadow: 0 0 0 4px rgba(111,207,111,.3); } }
+  .pill.run::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px;
+                      background: currentColor; vertical-align: 1px; animation: pulse 1.6s ease-out infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(111,207,111,.6); } 100% { box-shadow: 0 0 0 7px rgba(111,207,111,0); } }
+  .opt span { transition: transform .14s ease, border-color .14s ease, background-color .14s ease, box-shadow .14s ease; }
+  .opt:hover input:not(:disabled) + span { border-color: #6a5636; transform: translateY(-1px); }
+  .opt span.pick { animation: pick .3s ease; }
+  @keyframes pick { 50% { transform: scale(1.04); } }
+  .tabs { position: relative; }
+  .tabs .ink { position: absolute; height: 2px; background: var(--gold); border-radius: 1px;
+               transition: left .25s ease, width .25s ease, top .25s ease; pointer-events: none; }
+  .tabs.inked button[aria-selected="true"] { box-shadow: none; }
+  .tabpanel.in { animation: slidein .25s ease; }
+  @keyframes slidein { from { opacity: 0; transform: translateY(4px); } }
+  .bump { animation: bump .5s ease; }
+  @keyframes bump { 30% { color: var(--green); transform: translateY(-2px); } }
+  .sk .bar i { transition: width .6s cubic-bezier(.2,.8,.2,1); }
+  .view img.wait { background: linear-gradient(100deg, #1b1813 30%, #2a241d 50%, #1b1813 70%); background-size: 250% 100%;
+                   animation: shimmer 1.4s linear infinite; }
+  .view img.fade { animation: fadein .4s ease; }
+  @keyframes shimmer { to { background-position: -150% 0; } }
+  @keyframes fadein { from { opacity: 0; } }
+  .toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 60;
+            max-width: calc(100% - 32px); pointer-events: none; }
+  .toast { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--green); border-radius: 8px;
+           padding: 10px 14px; box-shadow: 0 8px 24px rgba(0,0,0,.5); animation: tin .25s ease; font-size: 13px; }
+  .toast.err { border-left-color: var(--red); }
+  .toast.out { animation: tout .25s ease forwards; }
+  @keyframes tin { from { opacity: 0; transform: translateY(10px); } }
+  @keyframes tout { to { opacity: 0; transform: translateX(20px); } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before { animation: none !important; transition: none !important; }
+    button:hover:not(:disabled), .opt:hover input + span { transform: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -777,6 +828,7 @@
   </aside>
 </main>
 
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 <script>
 // a phone gets the phone layout (its "Full panel" link comes back here with ?full)
 if (matchMedia("(max-width: 700px)").matches && !new URLSearchParams(location.search).has("full")) location.replace("/m");
@@ -811,6 +863,36 @@ async function notices() {
   }
 }
 const $ = (id) => document.getElementById(id);
+// ---- small UI motion helpers (toasts, button spinner, count bumps) ----
+function toast(text, err) {
+  const t = document.createElement("div");
+  t.className = "toast" + (err ? " err" : "");
+  t.textContent = (err ? "⚠ " : "✓ ") + text;
+  $("toasts").append(t);
+  while ($("toasts").children.length > 4) $("toasts").firstChild.remove();
+  setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 260); }, err ? 5000 : 2500);
+}
+function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+function busyButton(b, label) {             // spinner + what it's doing; returns done(ok)
+  if (!b.dataset.label) b.dataset.label = b.innerHTML;
+  b.classList.add("busy");
+  b.innerHTML = `<span class="spin"></span><span class="lbl"></span>`;
+  b.querySelector(".lbl").textContent = label;
+  return {
+    say: (t) => { const l = b.querySelector(".lbl"); if (l) l.textContent = t; },
+    done: (ok) => {
+      b.classList.remove("busy"); b.innerHTML = b.dataset.label; delete b.dataset.label;
+      replay(b, ok ? "okpop" : "shake");
+    },
+  };
+}
+function setNum(id, v) {                    // a count that went up flashes green
+  const el = $(id), txt = String(v);
+  if (el.textContent === txt) return;
+  const up = Number(txt) > Number(el.textContent);
+  el.textContent = txt;
+  if (up) replay(el, "bump");
+}
 const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 let running = false, mapsData = {}, savedSpots = null, saved = {};
 
@@ -1159,9 +1241,27 @@ function savePlanSoon() {
   planTimer = setTimeout(() => { plan = planFromUI(); post("/api/plan", plan); }, 300);
 }
 
+function placeInk() {
+  const nav = document.querySelector(".tabs"), b = nav.querySelector('button[aria-selected="true"]');
+  let ink = nav.querySelector(".ink");
+  if (!ink) { ink = document.createElement("i"); ink.className = "ink"; nav.append(ink); nav.classList.add("inked"); }
+  if (!b) return;
+  ink.style.left = (b.offsetLeft + 6) + "px"; ink.style.width = (b.offsetWidth - 12) + "px";
+  ink.style.top = (b.offsetTop + b.offsetHeight - 2) + "px";
+}
+addEventListener("resize", placeInk);
+document.addEventListener("change", (e) => {        // a picked tile gives a small pop
+  const span = e.target.matches(".opt input") && e.target.checked && e.target.nextElementSibling;
+  if (span) replay(span, "pick");
+});
 function showTab(name) {
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === name));
-  document.querySelectorAll(".tabpanel").forEach(p => p.hidden = p.dataset.tab !== name);
+  document.querySelectorAll(".tabpanel").forEach(p => {
+    const was = p.hidden;
+    p.hidden = p.dataset.tab !== name;
+    if (was && !p.hidden) replay(p, "in");
+  });
+  placeInk();
   try { localStorage.setItem("lj-tab", name); } catch (e) {}
 }
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
@@ -1203,9 +1303,23 @@ document.querySelector("aside").addEventListener("change", (e) => {
   save();
 });
 
-$("start").onclick = () => post("/api/start", settings(), $("msg"));
-$("pause").onclick = () => post("/api/pause");
-$("stop").onclick = () => post("/api/stop");
+let starting = null;                         // Start's spinner, until the run shows up as running
+$("start").onclick = async () => {
+  if (starting) return;
+  const b = $("start"), task = settings().task;
+  const s = starting = busyButton(b, "Starting...");
+  startingTask = task[0].toUpperCase() + task.slice(1);
+  const j = await post("/api/start", settings(), $("msg")).catch(() => ({ ok: false, error: "The panel didn't answer" }));
+  if (starting !== s) return;                // the live status already saw it running
+  if (!j.ok) { s.done(false); starting = null; toast(/^can't|^couldn't/i.test(j.error || "") ? j.error : "Couldn't start: " + (j.error || "something went wrong"), true); return; }
+  setTimeout(() => { if (starting === s) { s.done(true); starting = null; } }, 15000);   // never spin forever
+};
+let startingTask = "";
+$("pause").onclick = async () => {
+  const resume = $("pause").textContent === "Resume", j = await post("/api/pause");
+  if (j.ok !== false) toast(resume ? "Resumed" : "Paused");
+};
+$("stop").onclick = async () => { const j = await post("/api/stop"); if (j.ok !== false) toast("Stopped"); };
 
 document.querySelectorAll("[data-action]").forEach(b =>
   b.onclick = () => post(`/api/action/${b.dataset.action}`, null, $("manmsg")));
@@ -1318,12 +1432,19 @@ $("planupdate").onchange = () => {
   if ($("planupdate").checked) $("planresume").checked = true;   // updating restarts the panel
   savePlanSoon();
 };
-$("planstart").onclick = () => { plan = planFromUI(); post("/api/plan/start", plan, $("planmsg")); };
+$("planstart").onclick = async () => {
+  plan = planFromUI();
+  const w = busyButton($("planstart"), "Starting...");
+  const j = await post("/api/plan/start", plan, $("planmsg"));
+  w.done(j.ok);
+  toast(j.ok ? "Plan started" : "Couldn't start the plan: " + (j.error || "something went wrong"), !j.ok);
+};
 $("placesave").onclick = async () => {
   const name = $("placename").value.trim();
   if (!name) { $("planmsg").textContent = "Name the place first"; return; }
   const j = await post("/api/places/save", { name }, $("planmsg"));
-  if (j.ok) { $("placename").value = ""; $("planmsg").textContent = `Saved '${name}' at (${j.place.tile.join(", ")})`; loadPlan(); }
+  if (j.ok) { $("placename").value = ""; $("planmsg").textContent = `Saved '${name}' at (${j.place.tile.join(", ")})`;
+              toast(`Saved '${name}'`); loadPlan(); }
 };
 
 // ---- updating ----
@@ -1362,6 +1483,10 @@ function connect() {
     const st = JSON.parse(e.data);
     running = st.running;
     const busy = running || !!st.manual || !!st.recording;
+    if (starting) {
+      if (running) { starting.done(true); starting = null; toast(`${startingTask || "The bot"} started`); }
+      else if (st.state && st.state !== "idle") starting.say(st.state[0].toUpperCase() + st.state.slice(1) + "...");
+    }
     $("start").disabled = busy || !!document.querySelector("#need .need:not(.ok):not(.info)");
     const pl = st.plan;
     $("planstatus").hidden = !pl;
@@ -1414,12 +1539,12 @@ function connect() {
     $("update").hidden = !v.update && !updating;
     if (v.update && !updating) $("update").textContent = `⬆ Update to v${v.latest}`;
     $("pause").textContent = st.paused ? "Resume" : "Pause";
-    $("s-logs").textContent = st.logs;
-    $("s-banked").textContent = st.banked ?? 0;
-    $("s-burned").textContent = st.burned ?? 0;
-    $("s-fletched").textContent = st.fletched ?? 0;
-    $("s-cooked").textContent = st.cooked ?? 0;
-    $("s-burnt").textContent = st.burnt ?? 0;
+    setNum("s-logs", st.logs);
+    setNum("s-banked", st.banked ?? 0);
+    setNum("s-burned", st.burned ?? 0);
+    setNum("s-fletched", st.fletched ?? 0);
+    setNum("s-cooked", st.cooked ?? 0);
+    setNum("s-burnt", st.burnt ?? 0);
     const task = st.task || settings().task, fishing = task === "fishing";
     const UNITS = { fishing: ["fish", "fish caught"], mining: ["ore", "ore mined"], combat: ["kills", "kills"],
       ranged: ["kills", "kills"], magic: ["casts", "casts"], thieving: ["steals", "pickpockets"],
@@ -1436,7 +1561,7 @@ function connect() {
     $("t-cooked").hidden = $("t-burnt").hidden = !fishing;
     $("t-fletched").hidden = task !== "woodcutting" && task !== "bot";
     $("t-eaten").hidden = !["combat", "slayer"].includes(task);
-    $("s-eaten").textContent = st.eaten ?? 0;
+    setNum("s-eaten", st.eaten ?? 0);
     const lv = st.levels || {}, names = { woodcutting: "WC", firemaking: "FM", fletching: "FL", fishing: "FI", cooking: "CK",
                                  mining: "MI", attack: "AT", strength: "ST", defence: "DE", hitpoints: "HP" };
     $("levels").hidden = !Object.keys(lv).length;
@@ -1508,7 +1633,15 @@ $("copylog").onclick = async () => {
 };
 
 // the live view costs the game a capture per frame: only stream while this tab is visible
+function viewWaiting() {                     // a soft shimmer until the first picture arrives
+  const v = $("view");
+  v.classList.remove("fade"); v.classList.add("wait");
+  clearTimeout(v._t); v._t = setTimeout(() => v.classList.remove("wait"), 10000);
+}
+$("view").addEventListener("load", () => { const v = $("view"); if (v.classList.contains("wait")) { v.classList.remove("wait"); replay(v, "fade"); } });
+viewWaiting();
 document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) viewWaiting();
   $("view").src = document.hidden ? "" : "/stream.mjpg?" + Date.now();
 });
 
@@ -1523,7 +1656,7 @@ async function loadLogin() {
 $("lg_save").onclick = async () => {
   const j = await post("/api/login", { user: $("lg_user").value, password: $("lg_pass").value || null,
                                        enabled: $("lg_on").checked }, $("lgmsg"));
-  if (j.ok) { $("lg_pass").value = ""; $("lgmsg").textContent = "Saved."; loadLogin(); }
+  if (j.ok) { $("lg_pass").value = ""; $("lgmsg").textContent = "Saved."; toast("Login saved"); loadLogin(); }
 };
 loadLogin();
 
@@ -1541,14 +1674,18 @@ async function loadSkills() {
   try {
     const j = await (await fetch("/api/skills", { cache: "no-store" })).json();
     const rows = j.skills || [];
+    const before = {};                       // bars grow from where they were, not from scratch
+    document.querySelectorAll("#skills .sk").forEach(el => before[el.dataset.sk] = el.querySelector(".bar i")?.style.width);
     $("skills").innerHTML = rows.length ? rows.map(r => `
-      <div class="sk${r.gained ? " up" : ""}${r.level >= 99 ? " max" : ""}" title="${esc(r.name)}: ${r.xp.toLocaleString()} xp` +
+      <div class="sk${r.gained ? " up" : ""}${r.level >= 99 ? " max" : ""}" data-sk="${esc(r.name)}" data-pct="${r.pct}" title="${esc(r.name)}: ${r.xp.toLocaleString()} xp` +
         `${r.next != null ? ` - ${r.next.toLocaleString()} to level ${r.level + 1}` : ""}` +
         `${r.gained ? ` - +${r.gained.toLocaleString()} xp since the panel started` : ""}` +
         `${r.boosted !== r.level ? ` - currently ${r.boosted}` : ""}">
         <div class="top"><span>${esc(r.name[0].toUpperCase() + r.name.slice(1))}</span><b>${r.level}</b></div>
-        <div class="bar"><i style="width:${r.pct}%"></i></div>
+        <div class="bar"><i style="width:${before[r.name] || r.pct + "%"}"></i></div>
       </div>`).join("") : `<div class="hint">${esc(j.error || "No skills yet")}</div>`;
+    requestAnimationFrame(() => requestAnimationFrame(() => document.querySelectorAll("#skills .sk").forEach(el =>
+      el.querySelector(".bar i").style.width = el.dataset.pct + "%")));
     $("skills-total").textContent = rows.length ? `Total level ${j.total} · ${j.total_xp.toLocaleString()} xp` +
       (j.gained ? ` · +${j.gained.toLocaleString()} today` : "") : "";
   } catch (e) {}

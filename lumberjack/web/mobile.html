@@ -86,6 +86,44 @@
   footer { text-align: center; margin-top: 18px; }
   footer a { color: var(--muted); }
   [hidden] { display: none !important; }
+  /* ---- motion (subtle) - off with "reduce motion" ---- */
+  button { transition: transform .12s ease, box-shadow .14s ease, filter .14s ease, border-color .14s ease; }
+  button:active:not(:disabled) { transform: scale(.97); filter: brightness(1.15); transition-duration: 60ms; }
+  @media (hover: hover) {
+    button:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--gold); box-shadow: 0 4px 14px rgba(226,181,74,.16); }
+    button.go:hover:not(:disabled) { border-color: var(--green); box-shadow: 0 4px 16px rgba(111,207,111,.18); }
+    button.stop:hover:not(:disabled) { border-color: var(--red); box-shadow: 0 4px 16px rgba(224,106,90,.18); }
+  }
+  button.busy { cursor: progress; opacity: 1 !important; }
+  .spin { display: inline-block; width: 15px; height: 15px; margin-right: 8px; vertical-align: -2px;
+          border: 2px solid rgba(255,255,255,.25); border-top-color: currentColor; border-radius: 50%;
+          animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .shake { animation: shake .4s; }
+  @keyframes shake { 20%,60% { transform: translateX(-4px); } 40%,80% { transform: translateX(4px); } }
+  .okpop { animation: okpop .45s; }
+  @keyframes okpop { 40% { transform: scale(1.04); box-shadow: 0 0 0 4px rgba(111,207,111,.3); } }
+  .pill.run::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px;
+                      background: currentColor; vertical-align: 1px; animation: pulse 1.6s ease-out infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(111,207,111,.6); } 100% { box-shadow: 0 0 0 7px rgba(111,207,111,0); } }
+  .bump { animation: bump .5s ease; }
+  @keyframes bump { 30% { color: var(--green); transform: translateY(-2px); } }
+  #shot.wait { background: linear-gradient(100deg, #1b1813 30%, #2a241d 50%, #1b1813 70%); background-size: 250% 100%;
+               animation: shimmer 1.4s linear infinite; }
+  #shot.fade { animation: fadein .4s ease; }
+  @keyframes shimmer { to { background-position: -150% 0; } }
+  @keyframes fadein { from { opacity: 0; } }
+  .toasts { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 9;
+            display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+  .toast { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--green); border-radius: 10px;
+           padding: 10px 14px; box-shadow: 0 8px 24px rgba(0,0,0,.5); animation: tin .25s ease; font-size: 14px; max-width: 100%; }
+  .toast.err { border-left-color: var(--red); }
+  .toast.out { animation: tout .25s ease forwards; }
+  @keyframes tin { from { opacity: 0; transform: translateY(10px); } }
+  @keyframes tout { to { opacity: 0; transform: translateY(10px); } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -178,6 +216,7 @@
 
 <footer><a href="/?full=1">Full panel</a></footer>
 
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -192,6 +231,29 @@ const UNITS = { fishing: ["fish caught", "fish / hour"], mining: ["ore mined", "
 const cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
 const dur = (s) => `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}`;
 let running = false, busy = false, saved = { task: "", plan_steps: 0 };
+
+function toast(text, err) {
+  const t = document.createElement("div");
+  t.className = "toast" + (err ? " err" : "");
+  t.textContent = (err ? "⚠ " : "✓ ") + text;
+  $("toasts").append(t);
+  while ($("toasts").children.length > 3) $("toasts").firstChild.remove();
+  setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 260); }, err ? 5000 : 2500);
+}
+function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+function busyButton(b, label) {             // spinner + label while it works; done(ok) puts it back
+  const before = b.innerHTML;
+  b.classList.add("busy");
+  b.innerHTML = `<span class="spin"></span><span></span>`;
+  b.lastChild.textContent = label;
+  return { done: (ok) => { b.classList.remove("busy"); b.innerHTML = before; replay(b, ok ? "okpop" : "shake"); } };
+}
+function setNum(id, txt) {                  // a count that went up flashes green
+  const el = $(id), old = Number(el.textContent.replace(/,/g, ""));
+  if (el.textContent === txt) return;
+  el.textContent = txt;
+  if (Number(String(txt).replace(/,/g, "")) > old) replay(el, "bump");
+}
 
 async function post(url, body) {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
@@ -211,19 +273,31 @@ async function loadSaved() {
 function say(t, bad) { $("amsg").textContent = t || ""; $("amsg").style.color = bad ? "var(--red)" : ""; }
 
 $("start").onclick = async () => {
-  say("Starting…");
-  const r = await post("/api/start_saved", { what: "task" });
+  if ($("start").classList.contains("busy")) return;
+  say("");
+  const w = busyButton($("start"), "Starting…");
+  const r = await post("/api/start_saved", { what: "task" }).catch(() => ({ ok: false, error: "The PC didn't answer" }));
+  w.done(r.ok);
   say(r.ok ? "" : r.error || "Couldn't start", !r.ok);
+  toast(r.ok ? `${cap(saved.task) || "The bot"} started` : "Couldn't start", !r.ok);
 };
 $("startplan").onclick = async () => {
-  say("Starting the plan…");
-  const r = await post("/api/start_saved", { what: "plan" });
+  if ($("startplan").classList.contains("busy")) return;
+  say("");
+  const w = busyButton($("startplan"), "Starting the plan…");
+  const r = await post("/api/start_saved", { what: "plan" }).catch(() => ({ ok: false, error: "The PC didn't answer" }));
+  w.done(r.ok);
   say(r.ok ? "" : r.error || "Couldn't start the plan", !r.ok);
+  toast(r.ok ? "Plan started" : "Couldn't start the plan", !r.ok);
 };
-$("pause").onclick = () => post("/api/pause");
+$("pause").onclick = async () => {
+  const resume = $("pause").textContent === "Resume", r = await post("/api/pause");
+  if (r.ok) toast(resume ? "Resumed" : "Paused");
+};
 $("stop").onclick = async () => {
   if (!confirm("Stop the bot?")) return;            // no stopping a long run from a pocket tap
-  await post("/api/stop");
+  const r = await post("/api/stop");
+  if (r.ok) toast("Stopped");
 };
 
 // ---- live status ----
@@ -250,12 +324,12 @@ function render(st) {
   const [label, rate] = UNITS[task] || ["done", "per hour"];
   $("l-done").textContent = label;
   $("l-rate").textContent = rate;
-  $("s-done").textContent = n(st.logs);
+  setNum("s-done", n(st.logs));
   $("s-rate").textContent = st.per_hour ? n(st.per_hour) : "–";
   $("s-time").textContent = dur(st.elapsed || 0);
   $("t-cooked").hidden = !(st.cooked || st.burnt);
-  $("s-cooked").textContent = n(st.cooked);
-  $("s-burnt").textContent = n(st.burnt);
+  setNum("s-cooked", n(st.cooked));
+  setNum("s-burnt", n(st.burnt));
   const rows = Object.entries(st.xp || {}).filter(([, v]) => v.gained);
   $("xp").hidden = !rows.length;
   $("xp").querySelector("tbody").innerHTML = rows.map(([k, v]) => `<tr><td>${esc(cap(k))} ${v.level}` +
@@ -329,8 +403,9 @@ async function grab() {
   bytes += blob.size;
   frames += 1;
   const url = URL.createObjectURL(blob);
-  $("shot").src = url;
-  $("shotbox").hidden = false;
+  const shot = $("shot");
+  shot.src = url;
+  if (shot.classList.contains("wait")) { shot.classList.remove("wait"); replay(shot, "fade"); }
   if (lastUrl) URL.revokeObjectURL(lastUrl);
   lastUrl = url;
 }
@@ -343,13 +418,21 @@ function showUsage() {
     ". Stops by itself when you lock the phone or switch apps.";
 }
 
+function shotWaiting() {                    // a soft shimmer until the first picture arrives
+  if ($("shotbox").hidden || !lastUrl) { $("shot").removeAttribute("src"); $("shot").classList.add("wait"); }
+  $("shotbox").hidden = false;
+}
+function shotFailed() {
+  $("shot").classList.remove("wait");
+  if (!lastUrl) $("shotbox").hidden = true;
+}
 async function liveLoop(gen) {
   let fails = 0;
   while (live && gen === liveGen) {
     const t0 = Date.now(), p = QUALITY[$("quality").value] || QUALITY.saver;
     try { await grab(); fails = 0; }
     catch (e) {
-      if (++fails >= 5) { stopLive(); say("Can't see the game window right now", true); return; }
+      if (++fails >= 5) { stopLive(); shotFailed(); say("Can't see the game window right now", true); return; }
     }
     showUsage();
     await new Promise(res => setTimeout(res, Math.max(50, 1000 / p.fps - (Date.now() - t0))));
@@ -361,6 +444,7 @@ function startLive() {
   if (!frames) liveSince = Date.now();
   $("live").textContent = "■ Stop live"; $("live").className = "stop small";
   $("live-pill").hidden = false;
+  shotWaiting();
   liveLoop(liveGen);
 }
 function stopLive() {
@@ -370,7 +454,10 @@ function stopLive() {
 }
 $("live").onclick = () => live ? stopLive() : (bytes = frames = 0, liveSince = Date.now(), startLive());
 $("look").onclick = async () => {
-  try { await grab(); } catch (e) { say("Can't see the game window right now", true); }
+  shotWaiting();
+  const w = busyButton($("look"), "Looking…");
+  try { await grab(); w.done(true); }
+  catch (e) { w.done(false); shotFailed(); say("Can't see the game window right now", true); }
 };
 // a locked phone or another app: stop pulling pictures (no data used in your pocket)
 document.addEventListener("visibilitychange", () => { if (document.visibilityState !== "visible") stopLive(); });
@@ -399,12 +486,16 @@ async function saveNotify() {
   return r.ok;
 }
 $("nsave").onclick = async () => {
-  $("nmsg").textContent = (await saveNotify()) ? "Saved ✓" : "Couldn't save";
+  const ok = await saveNotify();
+  $("nmsg").textContent = ok ? "Saved ✓" : "Couldn't save";
+  toast(ok ? "Notification settings saved" : "Couldn't save", !ok);
 };
 $("ntest").onclick = async () => {
   $("nmsg").textContent = "Sending…";
+  const w = busyButton($("ntest"), "Sending…");
   await saveNotify();
   const r = await post("/api/notify/test");
+  w.done(r.ok);
   $("nmsg").textContent = r.ok ? "Sent ✓ - it should pop up on your phone in a few seconds"
     : `Couldn't send: ${r.error || "unknown error"} (is the PC online?)`;
 };
