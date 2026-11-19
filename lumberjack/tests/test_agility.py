@@ -134,7 +134,8 @@ def test_course_areas_never_overlap_and_landings_lead_on():
     assert A.next_obstacle(bar, bar["start"][:2], 0)[0] == 0
     assert A.next_obstacle(bar, (2545, 3542), 0) == (None, None)       # fell in the water: lost
     assert A.next_obstacle(bar, (2549, 9951), 0) == (None, None)       # the pit: lost
-    assert A.best_course(34) is A.GNOME and A.best_course(35) is A.BARBARIAN
+    # the server's slips only stop at 71 (59% on the log at 41, falls that kill): Gnome till then
+    assert A.best_course(41) is A.GNOME and A.best_course(70) is A.GNOME and A.best_course(71) is A.BARBARIAN
 
 
 def test_obstacle_not_in_sight_yet_is_no_try(course, monkeypatch):

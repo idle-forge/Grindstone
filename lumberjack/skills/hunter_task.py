@@ -60,6 +60,8 @@ class Hunter(BotBase):
         self.cap = None                     # the game's trap limit, when it told us
         self.chat_seen = {}                 # text -> chat count when we last looked for it
         self.chat_start = 0
+        # handled here: a refused tile -> step aside; the trap limit -> hold; a full pack -> make room
+        self.chat_handled = ("can't lay a trap here", "set up more than", "enough inventory space")
 
     def progress(self):
         return self.caught
@@ -147,7 +149,7 @@ class Hunter(BotBase):
             if self.use(failed[0], "Dismantle"):
                 self.collapsed += 1
             return
-        self.make_room()
+        self.make_room(force=self.said("enough inventory space"))
         me = self.gs.player()["tile"]
         if self.home and max(abs(me[0] - self.home[0]), abs(me[1] - self.home[1])) > HOME_RADIUS:
             self.state = "walking back"
@@ -244,15 +246,22 @@ class Hunter(BotBase):
         dx, dy = random.choice([(2, 0), (-2, 0), (0, 2), (0, -2), (2, 2), (-2, -2)])
         interact.walk_to_tile(self.ctx, self.gs, [tile[0] + dx, tile[1] + dy], arrive=0, max_clicks=3)
 
-    def make_room(self):
+    def make_room(self, force=False):
+        """Bones and meat go, and traps beyond what we can lay: a check hands the trap back,
+        and traps spawned while some were mid-catch piled up until a check had no room."""
         from lumberjack.core import backpack
         inv = backpack.slots() or []
-        if sum(1 for s in inv if s["id"] < 0) >= FREE_SLOTS:
+        if not force and sum(1 for s in inv if s["id"] < 0) >= FREE_SLOTS:
             return
         junk = [i for i, s in enumerate(inv) if s["id"] in JUNK]
+        if self.spot is not None:
+            iid = items.BY_KEY[self.spot[3]][1]
+            traps = [i for i, s in enumerate(inv) if s["id"] == iid]
+            junk += traps[max_traps(self.level()):]
         if junk:
-            self.state = "dropping bones and meat"
-            actions.drop_known(self.ctx, self.gs, junk)
+            self.state = "making room"
+            self.log.info("Making room: dropping %d bones/meat/spare traps", len(junk))
+            actions.drop_known(self.ctx, self.gs, sorted(junk))
 
     # ---- leaving -------------------------------------------------------------------------
     def pick_up_traps(self):

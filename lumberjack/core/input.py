@@ -91,6 +91,18 @@ class AgentInput:
     def right_click(self, x=None, y=None):
         self.click(x, y, RIGHT)
 
+    def wheel(self, x, y, notches):
+        """Scroll the mouse wheel over (x, y): + scrolls a list down. False when the game add-on
+        is older than this (it needs the game restarted from the Grindstone icon)."""
+        self.move(x, y)
+        try:
+            self._cmd("wheel", int(x), int(y), int(notches))
+            return True
+        except RuntimeError as e:
+            if "unknown command" in str(e):
+                return False
+            raise
+
     # ---- keyboard --------------------------------------------------------------------
     def key_down(self, vk):
         self._cmd("key_down", vk)

@@ -1,5 +1,17 @@
 # Changelog
 
+## 🔧 Autopilot fixes (summoning, hunter, agility, ranged)
+
+- **Summoning**: the bot can now scroll the pouch list to reach pouches below the part you can
+  see (Bronze minotaur and up). Restart the game from the Grindstone icon once to update the add-on
+- **Hunter**: spare snares and bones are dropped before a check has no room ("You don't have
+  enough inventory space" used to end the run), and a tile that won't take a trap no longer
+  stops it
+- **Agility**: the Gnome course until Agility 71. Barbarian Outpost lets you in at 35, but its
+  log, rope and ledge only stop failing at 71, and the ledge falls hurt (it was dying)
+- **Ranged**: arrows are topped up after each kill when under 300, instead of running out
+  mid-fight and stopping
+
 ## ✨ A livelier panel
 
 - Buttons lift and glow softly on hover and press in when clicked

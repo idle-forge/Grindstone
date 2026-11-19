@@ -100,7 +100,7 @@ every skill for hours, moving to better spots and better gear as you level up.
 | 🧤 | Thieving | Pickpockets men → Al Kharid warriors → guards → knights → paladins → heroes; handles stuns, eats |
 | 💀 | Slayer | Melee on the route's monsters with a matching Slayer task, set and renewed by itself |
 | 🌱 | Farming | Falador allotments + herb patch: rake, compost, plant, ::grow, harvest |
-| 🏃 | Agility | Laps of the Gnome Stronghold course, the Barbarian Outpost course from 35; teleports back to the start when lost |
+| 🏃 | Agility | Laps of the Gnome Stronghold course, the Barbarian Outpost course from 71 (where it stops failing); teleports back to the start when lost |
 | 🪤 | Hunter | Bird snares, then box traps for chinchompas, as many traps as the level allows |
 | 🔥 | Firemaking | Spawns the best logs you can light and burns them (or uses banked logs) |
 | 🍳 | Cooking | Spawns raw fish for your level and cooks them on its own fire |

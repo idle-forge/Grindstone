@@ -168,6 +168,22 @@ class Fighter(BotBase):
         self.kills += 1
         self.logs_cut = self.kills            # the panel shows logs_cut / per-hour
         log.info("Kill #%d - %s", self.kills, self.stats())
+        if getattr(self, "train", None) == "ranged":
+            self.top_up_arrows()
+
+    def top_up_arrows(self):
+        """After each kill: running low on worn arrows -> spawn and wear more now, not after the
+        game says "You do not have enough ammo left" (1000 arrows last ~40 kills of ice warriors)."""
+        if not (self.gs and self.spawn_tools):
+            return
+        from lumberjack import items
+        from lumberjack.core import gamestate
+        lv = (gamestate.skill("ranged") or {}).get("base", 1)
+        arrows = items.best_bow(lv)[1]
+        worn = {s["key"]: s.get("count", 1) for s in self._worn()}
+        if worn.get(arrows, 0) < self.ARROWS_LOW:
+            log.info("%d %s left - topping up", worn.get(arrows, 0), arrows.replace("_", " "))
+            self.equip_ranged()
 
     def hp(self, frame):
         if self.gs:
@@ -362,7 +378,7 @@ class Fighter(BotBase):
 
     # ---- levels & attack style -------------------------------------------------------
     # ---- ranged: a bow and arrows, spawned and worn ----------------------------------------
-    ARROWS_LOW = 50            # fewer worn arrows than this -> spawn more
+    ARROWS_LOW = 300           # fewer worn arrows than this -> spawn more (a kill can take 30+)
     ARROWS_SPAWN = 1000
 
     def equip_ranged(self):

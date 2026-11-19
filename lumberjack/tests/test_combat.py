@@ -588,3 +588,25 @@ def test_a_spot_where_no_attack_starts_a_fight_is_given_up(monkeypatch):
         for _ in range(combat.NO_FIGHT_LIMIT):
             f.target_index = 5
             f.fight()
+
+
+def test_arrows_are_topped_up_after_a_kill_before_they_run_out(monkeypatch):
+    """v165: 1000 rune arrows lasted ~40 ice warriors and the quiver was only checked every 15
+    kills, so the run ended on "You do not have enough ammo left" three times an hour."""
+    from lumberjack.core import gamestate
+    f = fighter(FakeGS([], {"index": 7, "tile": [3200, 3200]}))
+    f.train, f.spawn_tools, f.kills, f.eaten = "ranged", True, 0, 0
+    f.started = __import__("time").monotonic()
+    monkeypatch.setattr(gamestate, "skill", lambda name: {"base": 47})
+    refills = []
+    f.equip_ranged = lambda: refills.append(1)
+    f._worn = lambda: [{"key": "yew_shortbow"}, {"key": "rune_arrow", "count": 620}]
+    f._count_kill()
+    assert refills == []                                  # plenty left
+    f._worn = lambda: [{"key": "yew_shortbow"}, {"key": "rune_arrow", "count": 180}]
+    f._count_kill()
+    assert refills == [1]                                 # low: more spawned now, not after it's empty
+    f.train = "strength"
+    f._worn = lambda: []
+    f._count_kill()
+    assert refills == [1]                                 # melee: no quiver to look at

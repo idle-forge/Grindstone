@@ -50,12 +50,15 @@ GNOME = {
          "at": box(2480, 3428, 2492, 3433, 0)},
     ],
 }
-# Barbarian Outpost (level 35): the server's BarbarianOutpostCourse. Its door wants the Barcrawl
-# card - the teleport starts us inside. A slip drops us in a pit or the water: off the course,
-# so the runner teleports back to the start.
+# Barbarian Outpost (level 35 to enter): the server's BarbarianOutpostCourse. Its door wants the
+# Barcrawl card - the teleport starts us inside. A slip drops us in a pit or the water: off the
+# course, so the runner teleports back to the start. The server's slips (AgilityHandler.hasFailed)
+# stop only at Agility 71: at 41 the log fails ~59% and the ledge ~37% (a fall that hurts - it
+# killed us 3 times in an hour), so it's slower than the Gnome course until then.
+BARBARIAN_SAFE = 71
 BARBARIAN = {
     "name": "Barbarian Outpost course",
-    "level": 35,
+    "level": BARBARIAN_SAFE,
     "start": (2552, 3556, 0),
     "obstacles": [
         {"ids": {2282}, "op": "Swing-on", "area": box(2542, 3552, 2560, 3562, 0)},       # rope swing

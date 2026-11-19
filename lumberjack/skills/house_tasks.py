@@ -492,6 +492,82 @@ class Summoner(BotBase):
         self.inp.type_text(f"::item {iid} {amount}" if amount > 1 else f"::item {iid}", enter=True)
         self.sleep(1.0)
 
+    def pouch_on_screen(self, pouch, box):
+        """The pouch's component on the infusing screen, or None if it isn't listed at all."""
+        return next((w for w in box if w.get("obj") == pouch[2]), None) or \
+            next((w for w in box if pouch[1].lower() in (w.get("text") or w.get("name") or "").lower()), None)
+
+    def hovers(self, pouch, w):
+        """Hovering the component: does the game's option name our pouch? (A pouch scrolled out
+        of the list's view still has a position - over something else.)"""
+        from lumberjack.core.gamestate import top_entry
+        from lumberjack.ui import widgets
+        x, y = widgets.center(w)
+        self.inp.move(x, y)
+        self.sleep(0.25)
+        try:
+            top = top_entry(self.gs.menu()) or {}
+        except Exception:
+            return True                          # can't tell: let the click decide
+        verb, subject = (top.get("verb") or "").lower(), (top.get("subject") or "").lower()
+        if subject:
+            return pouch[1].lower() in subject
+        return verb.startswith(("infuse", "list"))      # a pouch option without a name: take it
+
+    def pick(self, item, op):
+        """Right-click the pouch and choose `op`; on a miss, log what the menu offered."""
+        from lumberjack.core.gamestate import menu_row_point
+        from lumberjack.ui import widgets
+        x, y = widgets.center(item)
+        self.inp.right_click(x + random.randint(-2, 2), y + random.randint(-2, 2))
+        self.sleep(random.uniform(0.25, 0.35))
+        try:
+            m = self.gs.menu()
+        except Exception:
+            return False
+        entries = m.get("entries") or []
+        e = next((e for e in entries if e["verb"].lower() == op.lower()), None)
+        if m.get("open") and e:
+            rx, ry = menu_row_point(m, e["row"])
+            self.inp.click(rx + random.randint(-10, 10), ry + random.randint(-1, 1))
+            return True
+        self.log.info("No %s on the pouch (the menu had: %s)", op,
+                      ", ".join(f"{e['verb']} {e['subject']}".strip() for e in entries) or "nothing")
+        self.inp.move(x, max(10, y - 120))
+        return False
+
+    def pouch_in_view(self, pouch, box):
+        """Find the pouch on the infusing screen and scroll the list until it's under the mouse.
+        The list holds every pouch (78), so the higher ones sit below its visible part."""
+        from lumberjack.ui import widgets
+        item = self.pouch_on_screen(pouch, box)
+        if item is None:
+            self.log.info("%s isn't on the infusing screen", pouch[1])
+            return None
+        if self.hovers(pouch, item):
+            return item
+        first = min(box, key=lambda w: (w["y"], w["x"]))         # the list's top: scroll over it
+        top_y = first["y"]
+        for _ in range(12):
+            gx, gy = widgets.center(first)
+            notches = 3 if item["y"] > top_y else -3
+            if not self.inp.wheel(gx, max(top_y + 10, gy), notches):
+                if not getattr(self, "_told_wheel", False):
+                    self._told_wheel = True
+                    self.log.warning("%s is below the visible part of the infusing list and this game's "
+                                     "add-on can't scroll it yet - restart the game from the Grindstone "
+                                     "icon once to rebuild the add-on", pouch[1])
+                return None
+            self.sleep(0.3)
+            box = [w for w in widgets.find(self.gs, str(INFUSE_BOX)) if w.get("if") == INFUSE_BOX and w["w"] > 0]
+            item = self.pouch_on_screen(pouch, box)
+            if item is None:
+                return None
+            if self.hovers(pouch, item):
+                return item
+        self.log.info("Couldn't scroll %s into view on the infusing screen", pouch[1])
+        return None
+
     def infuse(self, pouch):
         """Infuse-pouch at the obelisk, then the pouch's Infuse-All. How many were made."""
         from lumberjack.core import interact
@@ -513,14 +589,12 @@ class Summoner(BotBase):
         if not box:
             self.log.info("The infusing screen didn't open")
             return 0
-        item = next((w for w in box if w.get("obj") == pouch[2]), None) or \
-            next((w for w in box if pouch[1].lower() in (w.get("text") or w.get("name") or "").lower()), None)
+        item = self.pouch_in_view(pouch, box)
         if item is None:
-            self.log.info("%s isn't on the infusing screen", pouch[1])
+            actions.dismiss_dialog(self.ctx)
             actions.cancel_selection(self.ctx, force=True)
             return 0
-        if not widgets.choose(self.ctx, self.gs, item, "Infuse-All", menu=True):
-            self.log.info("No Infuse-All for %s", pouch[1])
+        if not self.pick(item, "Infuse-All"):
             actions.dismiss_dialog(self.ctx)
             actions.cancel_selection(self.ctx, force=True)      # start the next try afresh
             return 0

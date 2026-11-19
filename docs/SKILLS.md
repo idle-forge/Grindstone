@@ -90,7 +90,8 @@ tomatoes (12) → sweetcorn (20) → strawberries (31) → watermelons (47). Her
 torstol (85).
 
 ### 🏃 Agility
-Teleports to the Gnome Stronghold course (1), or the Barbarian Outpost course from 35, and runs
+Teleports to the Gnome Stronghold course (1), or the Barbarian Outpost course from 71 (it lets you in at 35, but
+slips - and falls that hurt - only stop at 71, so Gnome is faster and safe until then), and runs
 laps: each obstacle is found by its id in the scene, and when it gets lost, stuck or falls it
 teleports back to the start. At the end it teleports
 back to where you were.

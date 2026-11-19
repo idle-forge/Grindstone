@@ -11,6 +11,8 @@ import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -162,6 +164,9 @@ public final class InputAgent {
                 case "type":
                     typeChar(c, p[1].charAt(0));
                     return "ok";
+                case "wheel":                    // wheel x y notches (+ = down / toward the user)
+                    wheel(c, i(p[1]), i(p[2]), i(p[3]));
+                    return "ok";
                 default:
                     return "err unknown command";
             }
@@ -245,6 +250,15 @@ public final class InputAgent {
                 MouseEvent click = new MouseEvent(c, MouseEvent.MOUSE_CLICKED, now, modifiers | keyMods, x, y, 1, false, awtButton);
                 for (MouseListener l : c.getMouseListeners()) l.mouseClicked(click);
             }
+        });
+    }
+
+    /** Scroll the mouse wheel at (x, y): scrolls the interface list under it (pouches, shops). */
+    private static void wheel(Canvas c, int x, int y, int notches) throws Exception {
+        onEdt(() -> {
+            MouseWheelEvent e = new MouseWheelEvent(c, MouseEvent.MOUSE_WHEEL, System.currentTimeMillis(),
+                    modifiers | keyMods, x, y, 0, false, MouseWheelEvent.WHEEL_UNIT_SCROLL, 3, notches);
+            for (MouseWheelListener l : c.getMouseWheelListeners()) l.mouseWheelMoved(e);
         });
     }
 

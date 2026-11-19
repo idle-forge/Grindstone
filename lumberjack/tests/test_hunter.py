@@ -204,3 +204,25 @@ def test_the_games_trap_limit_is_respected(field):
     h.cap_until = 0                                     # a while later: the full count again
     h.tick()
     assert h.laid == 1 or h.state.startswith("spawning")
+
+
+def test_spare_snares_and_a_full_pack_are_cleared_before_a_check_fails(field):
+    """v165 overnight: snares spawned while others were mid-catch piled up (each check hands one
+    back) until a check had no room - "You don't have enough inventory space" six times, stop."""
+    field.level = 25                                      # wagtails: 2 traps
+    h = hunter(field)
+    h.go_to_spot()
+    for i in range(20):
+        field.inv[i] = {"id": SNARE, "key": "bird_snare"}
+    for i in range(20, 25):
+        field.inv[i] = {"id": 526, "key": "bones"}
+    h.make_room()                                         # 3 free: below FREE_SLOTS
+    assert sum(s["id"] == SNARE for s in field.inv) == 2 and not any(s["id"] == 526 for s in field.inv)
+    for i in range(2, 4):
+        field.inv[i] = {"id": SNARE, "key": "bird_snare"}
+    field.said.append("You don't have enough inventory space. You need 1 more free slot.")
+    h.tick()                                              # plenty free, but the game said so: tidy anyway
+    assert sum(s["id"] == SNARE for s in field.inv) <= 2
+    import inspect
+    src = inspect.getsource(H.Hunter.__init__)               # the bot handles these, the watcher mustn't stop it
+    assert all(t in src for t in ("can't lay a trap here", "enough inventory space"))

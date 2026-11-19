@@ -105,3 +105,54 @@ def test_construction_goes_back_in_when_clicks_build_nothing(monkeypatch):
     c.enter_house = lambda force=False: entered.append(force)
     c.run()
     assert entered == [False, True] and "nothing to build" in c.stop_reason
+
+
+class PouchList:
+    """The infusing screen: 78 pouches in a list whose visible part is 4 rows (y 60-220)."""
+    def __init__(self, wheel=True):
+        self.scroll, self.mouse, self.can_wheel = 0, (0, 0), wheel
+
+    def comps(self):
+        out = []
+        filler = [(1, f"Pouch {k}", 20000 + k, 0, []) for k in range(30)]    # the low-level pouches first
+        for n, (_, name, obj, _, _) in enumerate(filler + H.POUCHES):
+            out.append({"if": H.INFUSE_BOX, "x": 20 + (n % 8) * 50, "y": 60 + (n // 8) * 40 - self.scroll,
+                        "w": 40, "h": 36, "obj": obj, "text": "", "name": name, "ops": []})
+        return out
+
+    def under_mouse(self):
+        x, y = self.mouse
+        if not 60 <= y < 220:
+            return None                       # outside the list's view: the list doesn't get it
+        return next((w for w in self.comps() if w["x"] <= x < w["x"] + w["w"] and w["y"] <= y < w["y"] + w["h"]), None)
+
+    def menu(self):
+        w = self.under_mouse()
+        return {"open": False, "entries": [{"verb": "Infuse", "subject": w["name"], "row": 0}] if w else
+                [{"verb": "Walk here", "subject": "", "row": 0}]}
+
+
+def test_a_pouch_below_the_lists_view_is_scrolled_into_it(monkeypatch):
+    """v165: "No Infuse-All for Bronze minotaur pouch" every try - the list holds every pouch, and
+    the higher ones have a position below its visible part: hovering there isn't the pouch."""
+    from lumberjack.ui import widgets
+    for wheel_works in (True, False):
+        g = PouchList(wheel_works)
+        monkeypatch.setattr(widgets, "find", lambda gs, match=None: g.comps())
+        s = H.Summoner.__new__(H.Summoner)
+        s.gs, s.ctx, s.state, s.log = g, None, "", __import__("logging").getLogger("t")
+        s.sleep = lambda x: None
+
+        def wheel(x, y, n):
+            if not g.can_wheel:
+                return False
+            g.scroll += 40 * n // 3
+            return True
+        s.inp = types.SimpleNamespace(move=lambda x, y: setattr(g, "mouse", (x, y)), wheel=wheel)
+        pouch = next(p for p in H.POUCHES if "Bronze minotaur" in p[1])
+        item = s.pouch_in_view(pouch, g.comps())
+        if wheel_works:
+            assert item is not None and 60 <= widgets.center(item)[1] < 220 and g.scroll > 0
+            assert g.under_mouse()["name"] == pouch[1]
+        else:
+            assert item is None and s._told_wheel                     # says to restart the game once
